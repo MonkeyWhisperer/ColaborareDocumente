@@ -1,0 +1,24 @@
+﻿@page "/"
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            // User is authenticated, redirect to the target page
+            NavigationManager.NavigateTo("/colaborare-documente");
+        }
+        else
+        {
+            // User is not authenticated, stay on the current page or handle otherwise
+            // Optionally, redirect to a login page or show a message
+        }
+    }
+
+}

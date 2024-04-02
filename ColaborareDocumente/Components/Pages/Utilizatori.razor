@@ -1,0 +1,580 @@
+﻿@page "/utilizatori"
+<PageTitle>Utilizatori</PageTitle>
+
+@using BlazorBootstrap
+@using ColaborareDocumente.Data
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Identity;
+@using System.Text.RegularExpressions
+@using Microsoft.EntityFrameworkCore;
+
+@inject UserManager<ApplicationUser> _UserManager
+@inject RoleManager<IdentityRole> _RoleManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext dbContext
+
+@rendermode InteractiveServer
+
+<h3>Utilizatori</h3>
+<ConfirmDialog @ref="dialog" />
+
+<AuthorizeView>
+    <Authorized>
+
+        @if (@context.User.IsInRole(ADMINISTRATION_ROLE))
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th width="20%">Nume</th>
+                        <th width="20%">Prenume</th>
+                        <th width="20%">Email</th>
+                        <th width="20%">Mobil</th>
+                        <th width="20%">Rol</th>
+                        <th width="100"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in ColUsers)
+                    {
+                        <tr>
+                            <td>@user.LastName</td>
+                            <td>@user.FirstName</td>
+                            <td>@user.Email</td>
+                            <td>@user.PhoneNumber</td>
+                            <td>@user.RolName</td>
+                            <td>
+                                <!-- Edit the current forecast -->
+                                <button class="btn btn-primary"
+                                        @onclick="(() => EditUser(user))">
+                                    Editează
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (ShowPopup)
+            {
+                <!-- This is the popup to create or edit a user -->
+                <div class="modal" tabindex="-1" style="display:block" role="dialog">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                @if (objUser.Id == "")
+                                {
+                                    <h3 class="modal-title">Adaugă Utilizator</h3>
+                                }
+                                else
+                                {
+                                    <h3 class="modal-title">Editează Utilizator</h3>
+                                }
+                                <!-- Button to close the popup -->
+                                <button type="button" class="close" style="padding-left: 9px; padding-right: 8px;"
+                                        @onclick="ClosePopup">
+                                    <span aria-hidden="true">X</span>
+                                </button>
+                            </div>
+                            <!-- Edit form for the current forecast -->
+                            <div class="modal-body">
+                              
+                                <!-- Only allow edit if a new user -->
+                                @if (objUser.Id == "")
+                                {
+                                    <input class="form-control" type="text"
+                                    placeholder="Nume"
+                                    @bind="objUser.LastName"/>
+                                    <span style="color:red">@validationMessageLastName</span>
+                                }
+                                else
+                                {
+                                    <input class="form-control" type="text"
+                                           placeholder="Nume"
+                                           @bind="objUser.LastName" disabled />
+                                    <span style="color:red">@validationMessageLastName</span>
+
+                                }
+                                <br />
+                                @if (objUser.Id == "")
+                                {
+                                    <input class="form-control" type="text"
+                                    placeholder="Prenume"
+                                    @bind="objUser.FirstName"/>
+                                    <span style="color:red">@validationMessageFirstName</span>
+                                }
+                                else
+                                {
+                                    <input class="form-control" type="text"
+                                           placeholder="Prenume"
+                                           @bind="objUser.FirstName" disabled/>
+                                    <span style="color:red">@validationMessageFirstName</span>
+                                }
+                                <br />
+                                @if (objUser.Id == "")
+                                {
+                                    <input class="form-control" type="text"
+                                    placeholder="Email"
+                                    @bind="objUser.Email" />
+                                    <span style="color:red">@validationMessageEmail</span>
+
+                                }
+                                else
+                                {
+                                    <input class="form-control" type="text"
+                                           placeholder="Email"
+                                           @bind="objUser.Email" disabled />                                
+                                }
+                                <br />
+                                <input class="form-control" type="text"
+                                       placeholder="Mobil"
+                                       @bind="objUser.PhoneNumber" />
+                                <br /> 
+
+                                <select class="form-control"
+                                        @bind="@CurrentUserRole">
+                                    @foreach (var option in Options)
+                                    {
+                                        <option value="@option">
+                                            @option
+                                        </option>
+                                    }
+                                </select>
+                                <br /> 
+                        
+                                <!-- Only show delete button if not a new record -->
+                                @if (objUser.Id != "")
+                                {
+                                    <!-- Button to save the user -->
+                                    <button class="btn btn-primary"
+                                    @onclick="SaveUser">
+                                        Actualizează
+                                    </button>
+                                    <!-- Button to delete the forecast -->
+                                    <button class="btn btn-danger float-end"
+                                    @onclick="DeleteUser" >
+                                        Șterge
+                                    </button>
+                                }
+                                else 
+                                {
+                                    <!-- Button to save the user -->
+                                    <button class="btn btn-primary"
+                                            @onclick="SaveUser">
+                                        Finalizează
+                                    </button>
+                                }
+                                <br />
+                                <span style="color:red">@strError</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            <button class="btn btn-success" @onclick="AddNewUser">Înrolează Utilizator</button>
+        }
+        else
+        {
+            <p>You're not signed in as a user in @ADMINISTRATION_ROLE.</p>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <p>You're not loggged in.</p>
+    </NotAuthorized>
+</AuthorizeView>
+@code {
+    string validationMessageLastName = "";
+    string validationMessageFirstName = "";
+    string validationMessageEmail = "";
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    string ADMINISTRATION_ROLE = "Administrator";
+    System.Security.Claims.ClaimsPrincipal CurrentUser;
+
+    // Property used to add or edit the currently selected user
+    ApplicationUser objUser = new ApplicationUser();
+
+    // Tracks the selected role for the currently selected user
+    string CurrentUserRole { get; set; } = "Users";
+
+    // Collection to display the existing users
+    List<ApplicationUser> ColUsers = new List<ApplicationUser>();
+
+    // Options to display in the roles dropdown when editing a user
+    List<string> Options = new List<string>() { "Student", "Administrator" };
+
+    // To hold any possible errors
+    string strError = "";
+
+    // To enable showing the Popup
+    bool ShowPopup = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // ensure there is a ADMINISTRATION_ROLE
+        var RoleResult = await _RoleManager.FindByNameAsync(ADMINISTRATION_ROLE);
+        if (RoleResult == null)
+        {
+            // Create ADMINISTRATION_ROLE Role
+            await _RoleManager.CreateAsync(new IdentityRole(ADMINISTRATION_ROLE));
+        }
+
+        // Ensure a user named Admin@BlazorHelpWebsite.com is an Administrator
+        var user = await _UserManager.FindByNameAsync("admin@uab.ro");
+        if (user != null)
+        {
+            // Is Admin@BlazorHelpWebsite.com in administrator role?
+            var UserResult = await _UserManager.IsInRoleAsync(user, ADMINISTRATION_ROLE);
+            if (!UserResult)
+            {
+                // Put admin in Administrator role
+                await _UserManager.AddToRoleAsync(user, ADMINISTRATION_ROLE);
+            }
+        }
+
+        // Get the current logged in user
+        CurrentUser = (await authenticationStateTask).User;
+
+        // Get the users
+        await GetUsers();
+
+
+    }
+
+    public async Task GetUsers()
+    {
+        // clear any error messages
+        strError = "";
+
+        // Collection to hold users
+        ColUsers = new List<ApplicationUser>();
+
+        // get users from _UserManager
+        var users = _UserManager.Users.Select(x => new ApplicationUser
+        {
+            Id = x.Id,
+            UserName = x.UserName,
+            Email = x.Email,
+            FirstName = x.FirstName,
+            LastName = x.LastName,
+            PhoneNumber = x.PhoneNumber,
+        });
+
+        foreach (var item in users)
+        {
+            var roles = await _UserManager.GetRolesAsync(item); // Get roles for the user
+
+            item.RolName = roles.FirstOrDefault();
+            if (item.RolName == null)
+            {
+                item.RolName = "Student";
+            }
+
+            ColUsers.Add(item);
+        }
+    }
+
+    void AddNewUser()
+    {
+        // Make new user
+        objUser = new ApplicationUser();
+        objUser.PasswordHash = "*****";
+
+        // Set Id to blank so we know it is a new record
+        objUser.Id = "";
+
+        CurrentUserRole = Options.First(); 
+
+        // Open the Popup
+        ShowPopup = true;
+    }
+
+    async Task SaveUser()
+    {
+        try
+        {
+            bool isValid = true;
+
+
+            if (string.IsNullOrEmpty(objUser.FirstName))
+            {
+                validationMessageFirstName = "Câmpul Prenume este obligatoriu";
+                isValid = false;
+            }
+            else
+            {
+                validationMessageFirstName = "";
+            }
+
+            if (string.IsNullOrEmpty(objUser.LastName))
+            {
+                validationMessageLastName = "Câmpul Nume este obligatoriu";
+                isValid = false;
+            }
+            else
+            {
+                validationMessageLastName = "";
+            }
+
+            if (string.IsNullOrEmpty(objUser.Email))
+            {
+                validationMessageEmail = "Câmpul Email este obligatoriu";
+                isValid = false;
+            }
+            else if (!IsValidEmail(objUser.Email))
+            {
+                validationMessageEmail = "Adresa de Email nu este validă";
+                isValid = false;
+            }
+            else
+            {
+                validationMessageEmail = "";
+            }
+
+            if (!isValid)
+            {
+                return;
+            }
+
+            // Is this an existing user?
+            if (objUser.Id != "")
+            {
+                // Get the user
+                var user = await _UserManager.FindByIdAsync(objUser.Id);
+
+                user.FirstName = objUser.FirstName;
+                user.LastName = objUser.LastName;
+                user.Email = objUser.Email;
+                user.PhoneNumber = objUser.PhoneNumber;
+
+                // Update the user
+                await _UserManager.UpdateAsync(user);               
+
+                // Is user in administrator role?
+                var UserResult =
+                    await _UserManager
+                    .IsInRoleAsync(user, ADMINISTRATION_ROLE);
+
+                // Is Administrator role selected
+                // but user is not an Administrator?
+                if (
+                    (CurrentUserRole == ADMINISTRATION_ROLE)
+                    &
+                    (!UserResult))
+                {
+                    // Put admin in Administrator role
+                    await _UserManager
+                        .AddToRoleAsync(user, ADMINISTRATION_ROLE);
+                }
+                else
+                {
+                    // Is Administrator role not selected
+                    // but user is an Administrator?
+                    if ((CurrentUserRole != ADMINISTRATION_ROLE)
+                        &
+                        (UserResult))
+                    {
+                        // Remove user from Administrator role
+                        await _UserManager
+                            .RemoveFromRoleAsync(user, ADMINISTRATION_ROLE);
+                    }
+                }
+
+
+            }
+            else
+            {
+              
+
+                var NewUser =
+                    new ApplicationUser
+                    {
+                        UserName = string.IsNullOrWhiteSpace(objUser.Email) ? "placeholder" : objUser.Email,
+                        FirstName = objUser.FirstName,
+                        LastName = objUser.LastName,
+                        PhoneNumber = objUser.PhoneNumber,
+                        Email = objUser.Email,
+                        RolName = CurrentUserRole
+                    };
+
+                var CreateResult =
+                    await _UserManager
+                    .CreateAsync(NewUser);
+
+                if (!CreateResult.Succeeded)
+                {
+                    if (CreateResult
+                        .Errors
+                        .FirstOrDefault() != null)
+                    {
+                        strError =
+                            CreateResult
+                            .Errors
+                            .FirstOrDefault()
+                            .Description;
+                    }
+                    else
+                    {
+                        strError = "Create error";
+                    }
+
+                    // Keep the popup opened
+                    return;
+                }
+                else
+                {
+                    // Handle Roles
+                    if (CurrentUserRole == ADMINISTRATION_ROLE)
+                    {
+                        // Put admin in Administrator role
+                        await _UserManager
+                            .AddToRoleAsync(NewUser, ADMINISTRATION_ROLE);
+                    }
+                }
+            }
+
+            // Close the Popup
+            ShowPopup = false;
+
+            // Refresh Users
+            await GetUsers();
+        }
+        catch (Exception ex)
+        {
+            strError = ex.GetBaseException().Message;
+        }
+    }
+
+    async Task EditUser(ApplicationUser _ApplicationUser)
+    {
+        // Set the selected user
+        // as the current user
+        objUser = _ApplicationUser;
+
+        // Get the user
+        var user = await _UserManager.FindByIdAsync(objUser.Id);
+        if (user != null)
+        {
+            // Is user in administrator role?
+            var UserResult =
+                await _UserManager
+                .IsInRoleAsync(user, ADMINISTRATION_ROLE);
+
+            if (UserResult)
+            {
+                CurrentUserRole = ADMINISTRATION_ROLE;
+            }
+            else
+            {
+                CurrentUserRole = "Student";
+            }
+        }
+
+        // Open the Popup
+        ShowPopup = true;
+    }
+
+    private ConfirmDialog dialog;
+
+    async Task DeleteUser()
+    {
+        // Get the user
+        var user = await _UserManager.FindByIdAsync(objUser.Id);
+
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "Confirm",
+                YesButtonColor = ButtonColor.Danger,
+                NoButtonText = "Renunț",
+                NoButtonColor = ButtonColor.Primary
+            };
+
+        var confirmation = await dialog.ShowAsync(
+                 title: "Această acțiune este ireveresibilă",
+                 message1: "Confirmați ștergerea utilizatorului " + user.LastName + " " + user.FirstName,
+                 confirmDialogOptions: options);
+
+
+        if (!confirmation)
+        {
+            return;
+        }
+
+        // Close the Popup
+        ShowPopup = false;
+
+        // if user has access to folders, delete access to keep database clean :)
+        var accessesToRemove = await dbContext.FolderAccess
+                                         .Where(fa => fa.UserId == objUser.Id)
+                                         .ToListAsync();
+
+        if (accessesToRemove.Any())
+        {
+            dbContext.FolderAccess.RemoveRange(accessesToRemove);
+            await dbContext.SaveChangesAsync();
+        }
+
+        if (user != null)
+        {
+            // Delete the user
+            await _UserManager.DeleteAsync(user);
+        }
+
+        // Refresh Users
+        await GetUsers();
+    }
+
+    async Task ClosePopup()
+    {
+        // Close the Popup
+        ShowPopup = false;
+        await GetUsers();
+    }
+
+
+    // Method to validate the email format
+    bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        try
+        {
+            // Normalize the domain
+            email = Regex.Replace(email, @"(@)(.+)$", DomainMapper,
+                                  RegexOptions.None, TimeSpan.FromMilliseconds(200));
+
+            // Examines the domain part of the email and normalizes it.
+            string DomainMapper(Match match)
+            {
+                // Use IdnMapping class to convert Unicode domain names.
+                var idn = new System.Globalization.IdnMapping();
+
+                // Pull out and process domain name (throws ArgumentException on invalid)
+                var domainName = idn.GetAscii(match.Groups[2].Value);
+
+                return match.Groups[1].Value + domainName;
+            }
+        }
+        catch (RegexMatchTimeoutException e)
+        {
+            return false;
+        }
+        catch (ArgumentException e)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Regex.IsMatch(email,
+                @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return false;
+        }
+    }
+
+}

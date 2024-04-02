@@ -1,0 +1,94 @@
+﻿@page "/Account/Manage"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using ColaborareDocumente.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Informatii personale</PageTitle>
+
+<h3>Informatii personale</h3>
+<StatusMessage />
+
+<div class="row">
+    <div class="col-md-6">
+        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.LastName" class="form-control" placeholder="Introdu numele" />
+                <label for="lastName" class="form-label">Nume</label>
+                <ValidationMessage For="() => Input.LastName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.FirstName" class="form-control" placeholder="Introdu prenumele" />
+                <label for="firstName" class="form-label">Prenume</label>
+                <ValidationMessage For="() => Input.FirstName" class="text-danger" />
+
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Introdu numarul de telefon mobil" />
+                <label for="phone-number" class="form-label">Mobil</label>
+                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+            </div>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Actualizeaza</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private ApplicationUser user = default!;
+    private string? firstName;
+    private string? lastName;
+    private string? phoneNumber;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        phoneNumber = user.PhoneNumber;
+        firstName = user.FirstName;
+        lastName = user.LastName;
+        Input.PhoneNumber ??= phoneNumber;
+        Input.FirstName ??= firstName;
+        Input.LastName ??= lastName;
+    }
+
+    private async Task OnValidSubmitAsync()
+    { 
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+
+        user.FirstName = Input.FirstName;
+        user.LastName = Input.LastName;
+        user.PhoneNumber = Input.PhoneNumber;
+
+        await UserManager.UpdateAsync(user);
+
+        await SignInManager.RefreshSignInAsync(user);
+        RedirectManager.RedirectToCurrentPageWithStatus("Informatiile personale au fost actualizate cu succes", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        [Phone]
+        [Display(Name = "Mobil")]
+        public string? PhoneNumber { get; set; }
+
+        [Display(Name = "Nume")]
+        [Required]
+        public string LastName { get; set; }
+
+        [Display(Name = "Prenume")]
+        [Required]
+        public string FirstName { get; set; }
+    }
+}

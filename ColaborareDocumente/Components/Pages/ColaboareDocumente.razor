@@ -1,0 +1,768 @@
+﻿@page "/colaborare-documente"
+@page "/colaborare-documente/{FolderId}"
+
+@using Azure.Storage
+@using Azure.Storage.Blobs.Models
+@using Azure.Storage.Sas
+@using BlazorBootstrap
+@using ColaborareDocumente.Data
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Identity;
+@using System.Text.RegularExpressions
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Forms
+@using Azure.Storage.Blobs;
+@using Syncfusion.Blazor.DropDowns;
+
+@inject UserManager<ApplicationUser> _UserManager
+@inject RoleManager<IdentityRole> _RoleManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext dbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime jsRuntime
+
+@rendermode InteractiveServer
+
+<PageTitle>Colaborare Documente</PageTitle>
+
+<h1>@headerName</h1>
+
+<ConfirmDialog @ref="dialog" />
+
+<AuthorizeView>
+    <Authorized>
+        @* <Switch @bind-Value="afiseazaArhivaRece" Label="Afișeaza arhiva rece" /> *@
+        <button class="btn btn-success float-start" @onclick="(() => AddNewFolder())">Adaugă Folder</button>
+
+        <div class="file-input-wrapper">
+            <div class="file-input-button">Încarcă Documente</div>
+            <InputFile class="file-input" multiple OnChange="HandleSelectedFiles" />
+        </div>
+
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nume</th>
+                    @* <th width="300px">Creat de</th> *@
+                    <th width="200px">Ultima modificare</th>
+                    <th width="100px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var folder in folders)
+                {
+                    <tr style="cursor:pointer">
+                        <td @onclick="(() => ViewFolder(folder))"> <span class="bi bi-folder2" style="margin-right:5px;"></span>@folder.FolderName</td>
+                        @* <td width="300px"> </td> *@
+                        <td width="200px" @onclick="(() => ViewFolder(folder))">
+                            @if (folder.LastModifiedDate.HasValue)
+                            {
+                                @folder.LastModifiedDate.Value.ToString("dd/MM/yyyy - HH:mm")
+                            }
+                        </td>
+                        <td width="100px">
+                            <!-- Edit the current forecast -->
+                            <button class="btn btn-primary"
+                                    @onclick="(() => EditFolder(folder))">
+                                Editează
+                            </button>
+                        </td>
+
+                    </tr>
+                }
+                @foreach (var file in files)
+                {
+                    <tr style="cursor:pointer; height:55px;">
+                        <td @onclick="(() => ViewFile(file))"> <span class="bi bi-file-earmark-text" style="margin-right:5px;"></span>@file.FileName</td>
+                        @* <td width="300px"> </td> *@
+                        <td width="200px" @onclick="(() => ViewFile(file))">
+                            @if (file.LastModifiedDate.HasValue)
+                            {
+                                @file.LastModifiedDate.Value.ToString("dd/MM/yyyy - HH:mm")
+                            }
+                        </td>
+                        <td width="100px" @onclick="(() => ViewFile(file))">                           
+                          
+                        </td>
+
+                    </tr>
+                }
+
+                @if (!folders.Any() && !files.Any())
+                {
+                    <tr>
+                        <td colspan="3" class="text-center">Nu există foldere sau documente</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (ShowPopup)
+        {
+            <!-- This is the popup to create or edit a user -->
+            <div class="modal" tabindex="-1" style="display:block" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            @if (objFolder.FolderId > 0)
+                            {
+                                <h3 class="modal-title">Editează Folder</h3>
+                            }
+                            else
+                            {
+                                <h3 class="modal-title">Adaugă Folder</h3>
+                            }
+                            <!-- Button to close the popup -->
+                            <button type="button" class="close" style="padding-left: 9px; padding-right: 8px;"
+                                    @onclick="ClosePopup">
+                                <span aria-hidden="true">X</span>
+                            </button>
+                        </div>
+                        <!-- Edit form for the current forecast -->
+                        <div class="modal-body">
+                            <input class="form-control" type="text"
+                                   placeholder="Nume Folder"
+                                   @bind="objFolder.FolderName" />
+                            <span style="color:red">@validationFolderName</span>
+
+                            <br />
+                            @* <span>Acces Studenți</span> *@
+                            <SfMultiSelect TValue="string[]" TItem="ApplicationUser" Placeholder="Access Utilizatori" DataSource="@Studenti" @bind-Value="@selectedUserIds">
+                                <MultiSelectFieldSettings Text="FullName" Value="Id"></MultiSelectFieldSettings>
+                            </SfMultiSelect>
+
+                            <br />
+                            <br />
+
+                            <!-- Only show delete button if not a new record -->
+                            @if (objFolder.FolderId > 0)
+                            {
+                                <!-- Button to save the user -->
+                                <button class="btn btn-primary"
+                                        @onclick="SaveFolder">
+                                    Actualizează
+                                </button>
+                                <!-- Button to delete the forecast -->
+                                <button class="btn btn-danger float-end"
+                                        @onclick="(() => DeleteFolder(objFolder))">
+                                Arhivează
+                                </button>
+                            }
+                            else
+                            {
+                                <!-- Button to save the user -->
+                                <button class="btn btn-primary"
+                                        @onclick="SaveFolder">
+                                    Finalizează
+                                </button>
+                            }
+                            <br />
+                            <span style="color:red">@strError</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+     
+    </Authorized>
+    <NotAuthorized>
+        <p>You're not loggged in.</p>
+    </NotAuthorized>
+</AuthorizeView>
+@code {
+    private string[] selectedUserIds;
+
+    private bool afiseazaArhivaRece = false;
+    string validationFolderName = "";
+    private ElementReference fileInput;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    string ADMINISTRATION_ROLE = "Administrator";
+    System.Security.Claims.ClaimsPrincipal CurrentUser;
+
+    // Property used to add or edit the currently selected user
+    ApplicationUser objUser = new ApplicationUser();
+    Folder objFolder = new Folder();
+
+    // Tracks the selected role for the currently selected user
+    string CurrentUserRole { get; set; } = "Student";
+
+    // Collection to display the existing users
+    List<ApplicationUser> Studenti = new List<ApplicationUser>();
+
+    // Options to display in the roles dropdown when editing a user
+    List<string> Options = new List<string>() { "Student", "Administrator" };
+
+    // To hold any possible errors
+    string strError = "";
+
+    // To enable showing the Popup
+    bool ShowPopup = false;
+
+    // OR if you expect an integer and want to make it nullable
+    [Parameter]
+    public string FolderId { get; set; } // Nullable for value types
+
+    int folderId = -1;
+
+    public string headerName = "Colaborare Documente";
+
+    public List<Folder> parentFolders = new List<Folder>();
+    public List<Folder> childFolders = new List<Folder>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var users = _UserManager.Users.Select(x => new ApplicationUser
+            {
+                Id = x.Id,
+                UserName = x.UserName,
+                Email = x.Email,
+                FirstName = x.FirstName,
+                LastName = x.LastName,
+                PhoneNumber = x.PhoneNumber,
+            });
+
+        foreach (var item in users)
+        {
+            var roles = await _UserManager.GetRolesAsync(item); // Get roles for the user
+
+            item.RolName = roles.FirstOrDefault();
+            if (item.RolName == null)
+            {
+                Studenti.Add(item);
+            }
+
+        }
+
+        if (int.TryParse(FolderId, out var id))
+        {
+            // FolderId was provided, proceed with loading the folder details
+            folderId = id; // Use this value to load folder details
+        }
+
+        if (folderId > 0)
+        {
+            var folder = await dbContext.Folders.Where(e => e.FolderId == folderId).FirstOrDefaultAsync();
+            headerName += " - " + folder.FolderName;
+
+            var allFolders = await dbContext.Folders.ToListAsync();
+
+            parentFolders = GetAllParentFoldersUntilRoot(folderId, allFolders);
+        }
+
+
+        // ensure there is a ADMINISTRATION_ROLE
+        var RoleResult = await _RoleManager.FindByNameAsync(ADMINISTRATION_ROLE);
+        if (RoleResult == null)
+        {
+            // Create ADMINISTRATION_ROLE Role
+            await _RoleManager.CreateAsync(new IdentityRole(ADMINISTRATION_ROLE));
+        }
+
+        // Ensure a user named Admin@BlazorHelpWebsite.com is an Administrator
+        var user = await _UserManager.FindByNameAsync("admin@uab.ro");
+        if (user != null)
+        {
+            // Is Admin@BlazorHelpWebsite.com in administrator role?
+            var UserResult = await _UserManager.IsInRoleAsync(user, ADMINISTRATION_ROLE);
+            if (!UserResult)
+            {
+                // Put admin in Administrator role
+                await _UserManager.AddToRoleAsync(user, ADMINISTRATION_ROLE);
+            }
+        }
+
+        // Get the current logged in user
+        CurrentUser = (await authenticationStateTask).User;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var loggedInUser = authState.User;
+
+        // Get the folders
+        await GetFolders();
+        await GetFiles();
+    }
+
+    public List<Folder> GetAllChildFolders(int parentFolderId)
+    {
+        return GetAllChildFoldersRecursive(parentFolderId).ToList();
+    }
+
+    private IEnumerable<Folder> GetAllChildFoldersRecursive(int parentFolderId)
+    {
+        // Direct children of the current folder
+        var childFolders = dbContext.Folders.Where(f => f.ParentFolderId == parentFolderId).ToList();
+
+        foreach (var folder in childFolders)
+        {
+            // Yield return the current folder
+            yield return folder;
+
+            // Recursively yield return all children of the current folder
+            foreach (var childFolder in GetAllChildFoldersRecursive(folder.FolderId))
+            {
+                yield return childFolder;
+            }
+        }
+    }
+
+
+    private IReadOnlyList<IBrowserFile> selectedFiles;
+    private bool isUploading = false;
+
+    private async Task HandleSelectedFiles(InputFileChangeEventArgs e)
+    {
+
+        var selectedFiles = e.GetMultipleFiles();
+        // Optionally, you can limit the number of files
+        // selectedFiles = e.GetMultipleFiles(maxAllowedFiles);
+
+        // Assuming you have your Azure Storage connection string in a variable named connectionString
+        string connectionString = "DefaultEndpointsProtocol=https;AccountName=colaboraredocumente;AccountKey=2VmbePT5IL3EpmVwXNvrIwbDeRlIFN9YCCVJVRB0licy59uhhjdpYzUhX3IHOYpdPQA/LFFzckLO+AStCRQqMg==;EndpointSuffix=core.windows.net";
+        string containerName = "uab";
+        var blobServiceClient = new BlobServiceClient(connectionString);
+        var blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
+
+        isUploading = true;
+
+        foreach (var file in selectedFiles)
+        {
+            var blobName = Guid.NewGuid().ToString() + "/" + file.Name;
+            try
+            {
+                long maxAllowedSize = 1L * 1024 * 1024 * 1024 * 1024; // 1 Terabyte
+
+                string contentType = GetMimeType(file.Name);
+
+                // Define the BlobHttpHeaders
+                var httpHeaders = new BlobHttpHeaders { ContentType = contentType }; // Example for a PDF file
+
+                // Get a reference to the BlobClient for the specific blob you want to upload
+                var blobClient = blobContainerClient.GetBlobClient(blobName);
+
+                // Create BlobUploadOptions and include the HttpHeaders
+                var options = new BlobUploadOptions
+                    {
+                        HttpHeaders = httpHeaders
+                    };
+
+                // Use BlobClient to upload the file with the specified options
+                await blobClient.UploadAsync(file.OpenReadStream(maxAllowedSize), options);
+
+                // After upload, the blob URL can be obtained from the BlobClient
+                var blobUrl = blobClient.Uri.AbsoluteUri;
+
+                // Create a new instance of the Folder entity
+                var newFile = new File();
+
+                // Set properties for the new folder
+                newFile.FileName = file.Name;
+                newFile.BlobName = blobName;
+                newFile.BlobUrl = blobUrl;
+                newFile.CreatedDate = DateTime.Now; // Assuming you have a field for when the folder was created
+                newFile.LastModifiedDate = DateTime.Now; // Set the last modified date to now
+
+                // Assuming you are getting the current user's ID as you did in the update operation
+                newFile.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // For the creator's user ID
+                newFile.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Also setting the last modified by to the creator
+                newFile.ParentFolderId = folderId;
+                // Add the new folder to the DbSet<Folders> in your DbContext
+                dbContext.Files.Add(newFile);
+
+            }
+            catch (Exception ex)
+            { 
+            }
+        }
+
+
+        // Save the changes to the database
+        await dbContext.SaveChangesAsync();
+
+        isUploading = false;
+        await GetFiles();
+        // Trigger any UI updates or state changes
+        StateHasChanged();
+    }
+
+    private static string GetMimeType(string fileName)
+    {
+        var mimeTypes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+        {
+            // Add more MIME types here as needed
+            {".txt", "text/plain"},
+            {".pdf", "application/pdf"},
+            {".doc", "application/msword"},
+            {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+            {".xls", "application/vnd.ms-excel"},
+            {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+            {".png", "image/png"},
+            {".jpg", "image/jpeg"},
+            {".jpeg", "image/jpeg"},
+            {".gif", "image/gif"},
+            {".csv", "text/csv"},
+            // Add other mappings as needed
+        };
+
+        // Get the file extension
+        string extension = Path.GetExtension(fileName);
+
+        // Default to octet-stream for unknown types
+        return mimeTypes.TryGetValue(extension, out string mimeType) ? mimeType : "application/octet-stream";
+    }
+
+    private void ViewFolder(Folder folder)
+    {
+        // Use NavigationManager to navigate to the specific page
+        // If you need to pass the folder's ID or any other parameter, append it to the URL
+        NavigationManager.NavigateTo($"/colaborare-documente/{folder.FolderId}");
+    }
+
+    private void ViewFile(File file)
+    {
+        if (file != null && !string.IsNullOrEmpty(file.BlobUrl))
+        {
+            string input = file.BlobUrl;
+            int lastSlashIndex = input.LastIndexOf('/');
+            string substringAfterLastSlash = input.Substring(lastSlashIndex + 1);
+
+            string storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=colaboraredocumente;AccountKey=2VmbePT5IL3EpmVwXNvrIwbDeRlIFN9YCCVJVRB0licy59uhhjdpYzUhX3IHOYpdPQA/LFFzckLO+AStCRQqMg==;EndpointSuffix=core.windows.net";
+            string containerName = "uab";
+            string blobName = file.BlobName;
+
+            string blobUrlWithSas = GenerateBlobSasUrl(storageConnectionString, containerName, blobName);
+
+            // Open the file's BlobUrl in a new browser tab
+            // Note: This requires injecting and using the IJSRuntime to call JavaScript functions from Blazor
+            jsRuntime.InvokeVoidAsync("open", blobUrlWithSas, "_blank");
+        }
+
+    }
+
+    public string GenerateBlobSasUrl(string storageConnectionString, string containerName, string blobName)
+    {
+        BlobServiceClient blobServiceClient = new BlobServiceClient(storageConnectionString);
+
+        // Get the container client object
+        BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+
+        // Get the blob client object
+        BlobClient blobClient = containerClient.GetBlobClient(blobName);
+
+        // Generate SAS token for the blob using the BlobSasBuilder
+        var sasBuilder = new BlobSasBuilder
+            {
+                BlobContainerName = containerName,
+                BlobName = blobName,
+                Resource = "b", // "b" for blob
+                StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5), // Optional: to account for clock skew
+                ExpiresOn = DateTimeOffset.UtcNow.AddHours(1), // Token valid for 1 hour
+                Protocol = SasProtocol.Https // Use HTTPS for security
+            };
+
+        // Specify read permissions for the SAS
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        // Note: In the current Azure.Storage.Blobs SDK, we generate the SAS token differently:
+        // Use the user delegation key for generating the token if available, otherwise, fall back to the account key if necessary.
+        // This example assumes using the account key from the connection string implicitly.
+
+        // Generate the SAS token
+        var sasToken = blobClient.GenerateSasUri(sasBuilder).Query;
+
+        // Combine the blob URL with the SAS token
+        string blobUrlWithSas = $"{blobClient.Uri}?{sasToken}";
+
+        return blobUrlWithSas;
+    }
+
+    private List<Folder> folders = new List<Folder>();
+
+    public async Task GetFolders()
+    {
+        // clear any error messages
+        strError = "";
+
+
+
+        folders = await dbContext.Folders.Where(e => e.ParentFolderId == folderId && e.Archived == false).OrderByDescending(e => e.LastModifiedDate).ToListAsync();
+    }
+
+    private List<File> files = new List<File>();
+
+    public async Task GetFiles()
+    {
+        // clear any error messages
+        strError = "";
+
+
+
+        files = await dbContext.Files.Where(e => e.ParentFolderId == folderId && e.Archived == false).OrderByDescending(e => e.LastModifiedDate).ToListAsync();
+    }
+
+    async Task AddNewFolder()
+    {
+        objFolder = new Folder();
+        
+        if (folderId > 0)
+        {         
+            // Fetch FolderAccess records for the folder 
+            var folderAccessList = await dbContext.FolderAccess
+                                                  .Where(fa => fa.FolderId == folderId)
+                                                  .ToListAsync();
+
+            // Extract the user IDs from the FolderAccess records
+            selectedUserIds = folderAccessList.Select(fa => fa.UserId).ToArray();
+        }
+
+        ShowPopup = true;
+    }
+
+    async Task SaveFolder()
+    {
+        try
+        {
+            bool isValid = true;
+
+            if (string.IsNullOrEmpty(objFolder.FolderName))
+            {
+                validationFolderName = "Câmpul Nume Folder este obligatoriu";
+                isValid = false;
+            }
+            else
+            {
+                validationFolderName = "";
+            }
+
+            if (!isValid)
+            {
+                return;
+            }
+
+            // Is this an existing user?
+            if (objFolder.FolderId > 0)
+            {
+                var folder = await dbContext.Folders.FirstOrDefaultAsync(e => e.FolderId == objFolder.FolderId);
+
+                folder.FolderName = objFolder.FolderName;
+                folder.LastModifiedDate = DateTime.Now;
+                folder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                await dbContext.SaveChangesAsync();
+            }
+            else
+            {
+
+                // Create a new instance of the Folder entity
+                var newFolder = new Folder();
+
+                // Set properties for the new folder
+                newFolder.FolderName = objFolder.FolderName;
+                newFolder.CreatedDate = DateTime.Now; // Assuming you have a field for when the folder was created
+                newFolder.LastModifiedDate = DateTime.Now; // Set the last modified date to now
+
+                // Assuming you are getting the current user's ID as you did in the update operation
+                newFolder.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // For the creator's user ID
+                newFolder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Also setting the last modified by to the creator
+                newFolder.ParentFolderId = folderId;
+                // Add the new folder to the DbSet<Folders> in your DbContext
+                dbContext.Folders.Add(newFolder);
+
+                // Save the changes to the database
+                await dbContext.SaveChangesAsync();
+
+                objFolder.FolderId = newFolder.FolderId;
+
+            }
+
+            // Close the Popup
+            ShowPopup = false;
+
+            List<Folder> childFolders = GetAllChildFolders(objFolder.FolderId);
+
+            // First, delete all existing access records for the specified folder
+            var existingAccesses = await dbContext.FolderAccess
+                                                  .Where(fa => fa.FolderId == objFolder.FolderId)
+                                                  .ToListAsync();
+            dbContext.FolderAccess.RemoveRange(existingAccesses);
+
+            // Now, proceed to add new access records for each user in selectedUserIds
+            foreach (var userId in selectedUserIds)
+            {
+                // Since you've already deleted existing accesses, no need to check for duplicates
+                var newAccess = new FolderAccess
+                    {
+                        FolderId = objFolder.FolderId,
+                        UserId = userId
+                    };
+                dbContext.FolderAccess.Add(newAccess);
+            }
+
+            foreach (Folder childFolder in childFolders)
+            {
+                // First, delete all existing access records for the specified folder
+                 existingAccesses = await dbContext.FolderAccess
+                                                     .Where(fa => fa.FolderId == childFolder.FolderId)
+                                                      .ToListAsync();
+                dbContext.FolderAccess.RemoveRange(existingAccesses);
+
+                // Now, proceed to add new access records for each user in selectedUserIds
+                foreach (var userId in selectedUserIds)
+                {
+                    // Since you've already deleted existing accesses, no need to check for duplicates
+                    var newAccess = new FolderAccess
+                        {
+                            FolderId = childFolder.FolderId,
+                            UserId = userId
+                        };
+                    dbContext.FolderAccess.Add(newAccess);
+                }
+            }
+
+            // Finally, save all changes to the database
+            await dbContext.SaveChangesAsync();
+
+            // Refresh Users
+            await GetFolders();
+        }
+        catch (Exception ex)
+        {
+            strError = ex.GetBaseException().Message;
+        }
+    }
+
+    async Task EditFolder(Folder folder)
+    {
+        objFolder = folder; 
+
+        // Fetch FolderAccess records for the folder
+        var folderAccessList = await dbContext.FolderAccess
+                                              .Where(fa => fa.FolderId == folder.FolderId)
+                                              .ToListAsync();
+
+        // Extract the user IDs from the FolderAccess records
+        selectedUserIds = folderAccessList.Select(fa => fa.UserId).ToArray();
+
+        // Open the Popup
+        ShowPopup = true;
+    }
+
+    private ConfirmDialog dialog;
+
+    async Task DeleteFolder(Folder folder)
+    {
+        // Get the user
+        // var user = await _UserManager.FindByIdAsync(objUser.Id);
+
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "Confirm",
+                YesButtonColor = ButtonColor.Danger,
+                NoButtonText = "Renunț",
+                NoButtonColor = ButtonColor.Primary
+            };
+
+        var confirmation = await dialog.ShowAsync(
+                 title: "Această acțiune necesită confirmare",
+                 message1: "Confirmați arhivarea folderului " + folder.FolderName,
+                 confirmDialogOptions: options);
+
+
+        if (!confirmation)
+        {
+            return;
+        }
+
+        try
+        {
+            dbContext.Folders.Remove(folder); // Remove the folder entity from the context
+            await dbContext.SaveChangesAsync(); // Save changes to the database
+
+            // Optionally, show a success message or perform other actions post deletion
+        }
+        catch (Exception ex)
+        {
+            // Handle any errors that occur during the delete operation
+            // For example, log the exception and show an error message to the user
+            Console.WriteLine($"Error deleting folder: {ex.Message}");
+            // Depending on your UI framework, you may show an alert to the user here
+        }
+
+        // Refresh Users
+        ShowPopup = false;
+        await GetFolders();
+    }
+
+    async Task ClosePopup()
+    {
+        // Close the Popup
+        ShowPopup = false;
+        await GetFolders();
+    }
+
+    public static Folder GetFolderById(int folderId, List<Folder> allFolders)
+    {
+        return allFolders.FirstOrDefault(f => f.FolderId == folderId);
+    }
+
+    public static List<Folder> GetAllParentFoldersUntilRoot(int childFolderId, List<Folder> allFolders)
+    {
+        List<Folder> parentFolders = new List<Folder>();
+        var currentFolder = GetFolderById(childFolderId, allFolders);
+
+        // Loop until we reach a folder with ParentFolderId of -1
+        while (currentFolder != null)
+        {
+            var parentFolder = GetFolderById(currentFolder.ParentFolderId, allFolders);
+            if (parentFolder != null)
+            {
+                parentFolders.Add(parentFolder);
+                currentFolder = parentFolder;
+            }
+            else
+            {
+                // No valid parent found, break out of the loop
+                break;
+            }
+        }
+
+        return parentFolders;
+    }
+
+}
+
+<style>
+    .file-input-wrapper {
+        position: relative;
+        width: max-content;
+        float:left;
+        margin-left:10px;
+        cursor:pointer;
+    }
+
+    .file-input-button {
+        border: 1px solid #198754;
+        background-color: #198754;
+        color: white;
+        padding: 0.38rem 1rem;
+        border-radius: 0.4rem;
+        font-size: 1rem;
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .file-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+ 
+</style>
