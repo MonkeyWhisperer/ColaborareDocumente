@@ -19,11 +19,11 @@ public class EmailSender : IEmailSender
 
     public async Task SendEmailAsync(string toEmail, string subject, string message)
     {
-        if (string.IsNullOrEmpty("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"))
+        if (string.IsNullOrEmpty("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"))
         {
             throw new Exception("Null SendGridKey");
         }
-        await Execute("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", subject, message, toEmail);
+        await Execute("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", subject, message, toEmail);
     }
 
     public async Task Execute(string apiKey, string subject, string message, string toEmail)
