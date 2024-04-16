@@ -3,14 +3,23 @@
 
 @using BlazorBootstrap
 @using ColaborareDocumente.Data
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity.UI.Services
 @using Microsoft.AspNetCore.Authorization;
-@using Microsoft.AspNetCore.Identity;
 @using System.Text.RegularExpressions
 @using Microsoft.EntityFrameworkCore;
+@using System.Security.Cryptography;
+@using System.Text;
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Text.Encodings.Web
+@using System.Security.Claims
 
+
+@inject IEmailSender EmailSender
 @inject UserManager<ApplicationUser> _UserManager
 @inject RoleManager<IdentityRole> _RoleManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 @inject ApplicationDbContext dbContext
 
 @rendermode InteractiveServer
@@ -26,11 +35,12 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th width="20%">Nume</th>
-                        <th width="20%">Prenume</th>
-                        <th width="20%">Email</th>
-                        <th width="20%">Mobil</th>
-                        <th width="20%">Rol</th>
+                        <th width="300" >Nume</th>
+                        <th width="300">Prenume</th>
+                        <th >Email</th>
+                        <th width="200">Mobil</th>
+                        <th width="200">Rol</th>
+                        <th width="200">Email Confirmat</th>
                         <th width="100"></th>
                     </tr>
                 </thead>
@@ -43,6 +53,10 @@
                             <td>@user.Email</td>
                             <td>@user.PhoneNumber</td>
                             <td>@user.RolName</td>
+                            <td>@if (@user.EmailConfirmed)
+                                {
+                                    <text>Da</text>
+                                }else{ <text>Nu</text> }</td>
                             <td>
                                 <!-- Edit the current forecast -->
                                 <button class="btn btn-primary"
@@ -209,6 +223,18 @@
     // To enable showing the Popup
     bool ShowPopup = false;
 
+    private string? emailConfirmationLink;
+    private string? statusMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? Email { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         // ensure there is a ADMINISTRATION_ROLE
@@ -258,6 +284,7 @@
             FirstName = x.FirstName,
             LastName = x.LastName,
             PhoneNumber = x.PhoneNumber,
+            EmailConfirmed = x.EmailConfirmed
         });
 
         foreach (var item in users)
@@ -347,6 +374,8 @@
                 user.Email = objUser.Email;
                 user.PhoneNumber = objUser.PhoneNumber;
 
+
+
                 // Update the user
                 await _UserManager.UpdateAsync(user);               
 
@@ -384,7 +413,7 @@
             }
             else
             {
-              
+
 
                 var NewUser =
                     new ApplicationUser
@@ -397,9 +426,11 @@
                         RolName = CurrentUserRole
                     };
 
+                var password = GenerateRandomPassword();
+
                 var CreateResult =
                     await _UserManager
-                    .CreateAsync(NewUser);
+                    .CreateAsync(NewUser, password);
 
                 if (!CreateResult.Succeeded)
                 {
@@ -423,6 +454,42 @@
                 }
                 else
                 {
+                    var user = await _UserManager.FindByEmailAsync(objUser.Email);
+                    if (user is null)
+                    {
+                        HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+                        statusMessage = "Error finding user for unspecified email";
+                    }
+                    else
+                    {
+                        var loggedInUserId = CurrentUser.FindFirst(c => c.Type.Equals(ClaimTypes.NameIdentifier))?.Value;
+
+                        var loggdInUserEmail = "";
+                        var loggdInUserFullName = "";
+
+                        if (!string.IsNullOrEmpty(loggedInUserId))
+                        {
+                            // Using your DbContext to find the user by their ID
+                            var loggdInUser = dbContext.Users.FirstOrDefault(u => u.Id == loggedInUserId);
+
+                            if (loggdInUser != null)
+                            {
+                                // Assuming Email and FullName are properties of your ApplicationUser class
+                                loggdInUserEmail = loggdInUser.Email;
+                                loggdInUserFullName = loggdInUser.FullName;
+                            }
+                        }
+
+                        var userId = await _UserManager.GetUserIdAsync(user);
+                        var code = await _UserManager.GenerateEmailConfirmationTokenAsync(user);
+                        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+                        emailConfirmationLink = NavigationManager.GetUriWithQueryParameters(
+                            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+                            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+                        await EmailSender.SendEmailAsync(objUser.Email, "Confirmare înrolare Colaborare Cloud", "<b>" + user.FullName + "</b> ai fost înrolat de către <b>" + loggdInUserFullName + "</b> (<b>" + loggdInUserEmail + "</b>) în platforma Colaborare Cloud cu adresa de mail <b>" + objUser.Email + "</b> și parola autogenerată <b>" + password + "</b> pe care o poți schimba după autentificare.<br/><br/> Accesează linkul pentru a confirma înrolarea contului în Colaborare Cloud " + HtmlEncoder.Default.Encode(emailConfirmationLink) + " după care continuă autentificarea");
+                    }
+
                     // Handle Roles
                     if (CurrentUserRole == ADMINISTRATION_ROLE)
                     {
@@ -442,6 +509,64 @@
         catch (Exception ex)
         {
             strError = ex.GetBaseException().Message;
+        }
+    }
+
+    public static string GenerateRandomPassword(int length = 12)
+    {
+        const string upperCaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const string specialChars = "!@#$%^&*()_+-=";
+        const string digitChars = "0123456789"; // String for digit characters
+        const string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=";
+
+        // Using a cryptographically secure random number generator
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            StringBuilder password = new StringBuilder();
+
+            // Add a random uppercase letter
+            password.Append(upperCaseChars[GetInt(rng, upperCaseChars.Length)]);
+
+            // Add a random special character
+            password.Append(specialChars[GetInt(rng, specialChars.Length)]);
+
+            // Add a random digit
+            password.Append(digitChars[GetInt(rng, digitChars.Length)]);
+
+            // Fill the rest of the password length with random characters from the valid set
+            while (password.Length < length)
+            {
+                password.Append(validChars[GetInt(rng, validChars.Length)]);
+            }
+
+            // Shuffle the constructed password to randomize the positions of the guaranteed characters
+            var shuffledPassword = password.ToString().ToCharArray();
+            Shuffle(shuffledPassword, rng);
+
+            return new string(shuffledPassword);
+        }
+    }
+
+    // GetInt method to generate a random integer within a specific range
+    private static int GetInt(RandomNumberGenerator rng, int max)
+    {
+        byte[] intBytes = new byte[4];
+        rng.GetBytes(intBytes);
+        return Math.Abs(BitConverter.ToInt32(intBytes, 0)) % max;
+    }
+
+    // Shuffle method to randomize the characters in the password
+    private static void Shuffle(char[] array, RandomNumberGenerator rng)
+    {
+        int n = array.Length;
+        while (n > 1)
+        {
+            byte[] box = new byte[1];
+            do rng.GetBytes(box);
+            while (!(box[0] < n * (Byte.MaxValue / n)));
+            int k = (box[0] % n);
+            n--;
+            (array[k], array[n]) = (array[n], array[k]);
         }
     }
 
