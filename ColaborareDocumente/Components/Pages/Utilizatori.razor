@@ -35,9 +35,9 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th width="300" >Nume</th>
+                        <th width="300">Nume</th>
                         <th width="300">Prenume</th>
-                        <th >Email</th>
+                        <th>Email</th>
                         <th width="200">Mobil</th>
                         <th width="200">Rol</th>
                         <th width="200">Email Confirmat</th>
@@ -53,12 +53,18 @@
                             <td>@user.Email</td>
                             <td>@user.PhoneNumber</td>
                             <td>@user.RolName</td>
-                            <td>@if (@user.EmailConfirmed)
+                            <td>
+                                @if (@user.EmailConfirmed)
                                 {
                                     <text>Da</text>
-                                }else{ <text>Nu</text> }</td>
+                                }
+                                else
+                                {
+                                    <text>Nu</text>
+                                }
+                            </td>
                             <td>
-                                <!-- Edit the current forecast -->
+                                <!-- Editează utilizatorul curent -->
                                 <button class="btn btn-primary"
                                         @onclick="(() => EditUser(user))">
                                     Editează
@@ -70,7 +76,7 @@
             </table>
             @if (ShowPopup)
             {
-                <!-- This is the popup to create or edit a user -->
+                <!-- Aceasta este fereastra popup pentru a crea sau edita un utilizator -->
                 <div class="modal" tabindex="-1" style="display:block" role="dialog">
                     <div class="modal-dialog">
                         <div class="modal-content">
@@ -83,21 +89,21 @@
                                 {
                                     <h3 class="modal-title">Editează Utilizator</h3>
                                 }
-                                <!-- Button to close the popup -->
+                                <!-- Buton pentru a închide fereastra popup -->
                                 <button type="button" class="close" style="padding-left: 9px; padding-right: 8px;"
                                         @onclick="ClosePopup">
                                     <span aria-hidden="true">X</span>
                                 </button>
                             </div>
-                            <!-- Edit form for the current forecast -->
+                            <!-- Formular de editare pentru utilizatorul curent -->
                             <div class="modal-body">
-                              
-                                <!-- Only allow edit if a new user -->
+
+                                <!-- Permite editarea doar dacă este un utilizator nou -->
                                 @if (objUser.Id == "")
                                 {
                                     <input class="form-control" type="text"
-                                    placeholder="Nume"
-                                    @bind="objUser.LastName"/>
+                                           placeholder="Nume"
+                                           @bind="objUser.LastName" />
                                     <span style="color:red">@validationMessageLastName</span>
                                 }
                                 else
@@ -112,23 +118,23 @@
                                 @if (objUser.Id == "")
                                 {
                                     <input class="form-control" type="text"
-                                    placeholder="Prenume"
-                                    @bind="objUser.FirstName"/>
+                                           placeholder="Prenume"
+                                           @bind="objUser.FirstName" />
                                     <span style="color:red">@validationMessageFirstName</span>
                                 }
                                 else
                                 {
                                     <input class="form-control" type="text"
                                            placeholder="Prenume"
-                                           @bind="objUser.FirstName" disabled/>
+                                           @bind="objUser.FirstName" disabled />
                                     <span style="color:red">@validationMessageFirstName</span>
                                 }
                                 <br />
                                 @if (objUser.Id == "")
                                 {
                                     <input class="form-control" type="text"
-                                    placeholder="Email"
-                                    @bind="objUser.Email" />
+                                           placeholder="Email"
+                                           @bind="objUser.Email" />
                                     <span style="color:red">@validationMessageEmail</span>
 
                                 }
@@ -136,13 +142,13 @@
                                 {
                                     <input class="form-control" type="text"
                                            placeholder="Email"
-                                           @bind="objUser.Email" disabled />                                
+                                           @bind="objUser.Email" disabled />
                                 }
                                 <br />
                                 <input class="form-control" type="text"
                                        placeholder="Mobil"
                                        @bind="objUser.PhoneNumber" />
-                                <br /> 
+                                <br />
 
                                 <select class="form-control"
                                         @bind="@CurrentUserRole">
@@ -153,25 +159,25 @@
                                         </option>
                                     }
                                 </select>
-                                <br /> 
-                        
-                                <!-- Only show delete button if not a new record -->
+                                <br />
+
+                                <!-- Afișează butonul de ștergere doar dacă nu este un înregistrare nouă -->
                                 @if (objUser.Id != "")
                                 {
-                                    <!-- Button to save the user -->
+                                    <!-- Buton pentru a salva utilizatorul -->
                                     <button class="btn btn-primary"
-                                    @onclick="SaveUser">
+                                            @onclick="SaveUser">
                                         Actualizează
                                     </button>
-                                    <!-- Button to delete the forecast -->
+                                    <!-- Buton pentru a șterge utilizatorul -->
                                     <button class="btn btn-danger float-end"
-                                    @onclick="DeleteUser" >
+                                            @onclick="DeleteUser">
                                         Șterge
                                     </button>
                                 }
-                                else 
+                                else
                                 {
-                                    <!-- Button to save the user -->
+                                    <!-- Buton pentru a salva utilizatorul -->
                                     <button class="btn btn-primary"
                                             @onclick="SaveUser">
                                         Finalizează
@@ -188,11 +194,11 @@
         }
         else
         {
-            <p>You're not signed in as a user in @ADMINISTRATION_ROLE.</p>
+            <p>Nu sunteți autentificat ca utilizator în @ADMINISTRATION_ROLE.</p>
         }
     </Authorized>
     <NotAuthorized>
-        <p>You're not loggged in.</p>
+        <p>Nu sunteți autentificat.</p>
     </NotAuthorized>
 </AuthorizeView>
 @code {
@@ -205,22 +211,22 @@
     string ADMINISTRATION_ROLE = "Administrator";
     System.Security.Claims.ClaimsPrincipal CurrentUser;
 
-    // Property used to add or edit the currently selected user
+    // Proprietate folosită pentru a adăuga sau edita utilizatorul selectat în prezent
     ApplicationUser objUser = new ApplicationUser();
 
-    // Tracks the selected role for the currently selected user
+    // Urmărește rolul selectat pentru utilizatorul curent
     string CurrentUserRole { get; set; } = "Users";
 
-    // Collection to display the existing users
+    // Colecție pentru a afișa utilizatorii existenți
     List<ApplicationUser> ColUsers = new List<ApplicationUser>();
 
-    // Options to display in the roles dropdown when editing a user
+    // Opțiuni pentru a afișa în dropdown-ul de roluri când se editează un utilizator
     List<string> Options = new List<string>() { "Student", "Administrator" };
 
-    // To hold any possible errors
+    // Pentru a ține eventualele erori
     string strError = "";
 
-    // To enable showing the Popup
+    // Pentru a permite afișarea ferestrei popup
     bool ShowPopup = false;
 
     private string? emailConfirmationLink;
@@ -237,31 +243,31 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // ensure there is a ADMINISTRATION_ROLE
+        // asigură că există un rol ADMINISTRATION_ROLE
         var RoleResult = await _RoleManager.FindByNameAsync(ADMINISTRATION_ROLE);
         if (RoleResult == null)
         {
-            // Create ADMINISTRATION_ROLE Role
+            // Creează rolul ADMINISTRATION_ROLE
             await _RoleManager.CreateAsync(new IdentityRole(ADMINISTRATION_ROLE));
         }
 
-        // Ensure a user named Admin@BlazorHelpWebsite.com is an Administrator
-        var user = await _UserManager.FindByNameAsync("admin@uab.ro");
+        // Asigură că un utilizator numit admin@colaborare.cloud este Administrator
+        var user = await _UserManager.FindByNameAsync("admin@colaborare.cloud");
         if (user != null)
         {
-            // Is Admin@BlazorHelpWebsite.com in administrator role?
+            // Este admin@colaborare.cloud în rolul de administrator?
             var UserResult = await _UserManager.IsInRoleAsync(user, ADMINISTRATION_ROLE);
             if (!UserResult)
             {
-                // Put admin in Administrator role
+                // Pune admin în rolul de Administrator
                 await _UserManager.AddToRoleAsync(user, ADMINISTRATION_ROLE);
             }
         }
 
-        // Get the current logged in user
+        // Obține utilizatorul curent autentificat
         CurrentUser = (await authenticationStateTask).User;
 
-        // Get the users
+        // Obține utilizatorii
         await GetUsers();
 
 
@@ -269,27 +275,27 @@
 
     public async Task GetUsers()
     {
-        // clear any error messages
+        // șterge eventualele mesaje de eroare
         strError = "";
 
-        // Collection to hold users
+        // Colecție pentru a ține utilizatorii
         ColUsers = new List<ApplicationUser>();
 
-        // get users from _UserManager
+        // obține utilizatorii de la _UserManager
         var users = _UserManager.Users.Select(x => new ApplicationUser
-        {
-            Id = x.Id,
-            UserName = x.UserName,
-            Email = x.Email,
-            FirstName = x.FirstName,
-            LastName = x.LastName,
-            PhoneNumber = x.PhoneNumber,
-            EmailConfirmed = x.EmailConfirmed
-        });
+            {
+                Id = x.Id,
+                UserName = x.UserName,
+                Email = x.Email,
+                FirstName = x.FirstName,
+                LastName = x.LastName,
+                PhoneNumber = x.PhoneNumber,
+                EmailConfirmed = x.EmailConfirmed
+            });
 
         foreach (var item in users)
         {
-            var roles = await _UserManager.GetRolesAsync(item); // Get roles for the user
+            var roles = await _UserManager.GetRolesAsync(item); // Obține rolurile pentru utilizator
 
             item.RolName = roles.FirstOrDefault();
             if (item.RolName == null)
@@ -303,16 +309,16 @@
 
     void AddNewUser()
     {
-        // Make new user
+        // Creează un utilizator nou
         objUser = new ApplicationUser();
         objUser.PasswordHash = "*****";
 
-        // Set Id to blank so we know it is a new record
+        // Setează Id-ul ca fiind gol pentru a ști că este o înregistrare nouă
         objUser.Id = "";
 
-        CurrentUserRole = Options.First(); 
+        CurrentUserRole = Options.First();
 
-        // Open the Popup
+        // Deschide fereastra popup
         ShowPopup = true;
     }
 
@@ -321,7 +327,6 @@
         try
         {
             bool isValid = true;
-
 
             if (string.IsNullOrEmpty(objUser.FirstName))
             {
@@ -363,10 +368,10 @@
                 return;
             }
 
-            // Is this an existing user?
+            // Este acesta un utilizator existent?
             if (objUser.Id != "")
             {
-                // Get the user
+                // Obține utilizatorul
                 var user = await _UserManager.FindByIdAsync(objUser.Id);
 
                 user.FirstName = objUser.FirstName;
@@ -374,57 +379,51 @@
                 user.Email = objUser.Email;
                 user.PhoneNumber = objUser.PhoneNumber;
 
+                // Actualizează utilizatorul
+                await _UserManager.UpdateAsync(user);
 
-
-                // Update the user
-                await _UserManager.UpdateAsync(user);               
-
-                // Is user in administrator role?
+                // Este utilizatorul în rolul de administrator?
                 var UserResult =
                     await _UserManager
                     .IsInRoleAsync(user, ADMINISTRATION_ROLE);
 
-                // Is Administrator role selected
-                // but user is not an Administrator?
+                // Este rolul de Administrator selectat
+                // dar utilizatorul nu este un Administrator?
                 if (
                     (CurrentUserRole == ADMINISTRATION_ROLE)
                     &
                     (!UserResult))
                 {
-                    // Put admin in Administrator role
+                    // Pune admin în rolul de Administrator
                     await _UserManager
                         .AddToRoleAsync(user, ADMINISTRATION_ROLE);
                 }
                 else
                 {
-                    // Is Administrator role not selected
-                    // but user is an Administrator?
+                    // Este rolul de Administrator ne-selectat
+                    // dar utilizatorul este un Administrator?
                     if ((CurrentUserRole != ADMINISTRATION_ROLE)
                         &
                         (UserResult))
                     {
-                        // Remove user from Administrator role
+                        // Scoate utilizatorul din rolul de Administrator
                         await _UserManager
                             .RemoveFromRoleAsync(user, ADMINISTRATION_ROLE);
                     }
                 }
-
-
             }
             else
             {
-
-
                 var NewUser =
                     new ApplicationUser
-                    {
-                        UserName = string.IsNullOrWhiteSpace(objUser.Email) ? "placeholder" : objUser.Email,
-                        FirstName = objUser.FirstName,
-                        LastName = objUser.LastName,
-                        PhoneNumber = objUser.PhoneNumber,
-                        Email = objUser.Email,
-                        RolName = CurrentUserRole
-                    };
+                        {
+                            UserName = string.IsNullOrWhiteSpace(objUser.Email) ? "placeholder" : objUser.Email,
+                            FirstName = objUser.FirstName,
+                            LastName = objUser.LastName,
+                            PhoneNumber = objUser.PhoneNumber,
+                            Email = objUser.Email,
+                            RolName = CurrentUserRole
+                        };
 
                 var password = GenerateRandomPassword();
 
@@ -449,7 +448,7 @@
                         strError = "Create error";
                     }
 
-                    // Keep the popup opened
+                    // Păstrează fereastra popup deschisă
                     return;
                 }
                 else
@@ -469,12 +468,12 @@
 
                         if (!string.IsNullOrEmpty(loggedInUserId))
                         {
-                            // Using your DbContext to find the user by their ID
+                            // Folosind DbContext pentru a găsi utilizatorul după ID-ul său
                             var loggdInUser = dbContext.Users.FirstOrDefault(u => u.Id == loggedInUserId);
 
                             if (loggdInUser != null)
                             {
-                                // Assuming Email and FullName are properties of your ApplicationUser class
+                                // Presupunând că Email și FullName sunt proprietăți ale clasei ApplicationUser
                                 loggdInUserEmail = loggdInUser.Email;
                                 loggdInUserFullName = loggdInUser.FullName;
                             }
@@ -490,20 +489,20 @@
                         await EmailSender.SendEmailAsync(objUser.Email, "Confirmare înrolare Colaborare Cloud", "<b>" + user.FullName + "</b> ai fost înrolat de către <b>" + loggdInUserFullName + "</b> (<b>" + loggdInUserEmail + "</b>) în platforma Colaborare Cloud cu adresa de mail <b>" + objUser.Email + "</b> și parola autogenerată <b>" + password + "</b> pe care o poți schimba după autentificare.<br/><br/> Accesează linkul pentru a confirma înrolarea contului în Colaborare Cloud " + HtmlEncoder.Default.Encode(emailConfirmationLink) + " după care continuă autentificarea");
                     }
 
-                    // Handle Roles
+                    // Gestionare roluri
                     if (CurrentUserRole == ADMINISTRATION_ROLE)
                     {
-                        // Put admin in Administrator role
+                        // Pune admin în rolul de Administrator
                         await _UserManager
                             .AddToRoleAsync(NewUser, ADMINISTRATION_ROLE);
                     }
                 }
             }
 
-            // Close the Popup
+            // Închide fereastra popup
             ShowPopup = false;
 
-            // Refresh Users
+            // Reîmprospătează utilizatorii
             await GetUsers();
         }
         catch (Exception ex)
@@ -516,30 +515,30 @@
     {
         const string upperCaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const string specialChars = "!@#$%^&*()_+-=";
-        const string digitChars = "0123456789"; // String for digit characters
+        const string digitChars = "0123456789"; // String pentru caracterele cifre
         const string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=";
 
-        // Using a cryptographically secure random number generator
+        // Folosind un generator de numere aleatorii criptografic sigur
         using (var rng = RandomNumberGenerator.Create())
         {
             StringBuilder password = new StringBuilder();
 
-            // Add a random uppercase letter
+            // Adaugă o literă mare aleatorie
             password.Append(upperCaseChars[GetInt(rng, upperCaseChars.Length)]);
 
-            // Add a random special character
+            // Adaugă un caracter special aleatoriu
             password.Append(specialChars[GetInt(rng, specialChars.Length)]);
 
-            // Add a random digit
+            // Adaugă o cifră aleatorie
             password.Append(digitChars[GetInt(rng, digitChars.Length)]);
 
-            // Fill the rest of the password length with random characters from the valid set
+            // Completează restul lungimii parolei cu caractere aleatorii din setul valid
             while (password.Length < length)
             {
                 password.Append(validChars[GetInt(rng, validChars.Length)]);
             }
 
-            // Shuffle the constructed password to randomize the positions of the guaranteed characters
+            // Amestecă parola construită pentru a randomiza pozițiile caracterelor garantate
             var shuffledPassword = password.ToString().ToCharArray();
             Shuffle(shuffledPassword, rng);
 
@@ -547,7 +546,7 @@
         }
     }
 
-    // GetInt method to generate a random integer within a specific range
+    // Metoda GetInt pentru a genera un număr întreg aleatoriu într-un interval specific
     private static int GetInt(RandomNumberGenerator rng, int max)
     {
         byte[] intBytes = new byte[4];
@@ -555,7 +554,7 @@
         return Math.Abs(BitConverter.ToInt32(intBytes, 0)) % max;
     }
 
-    // Shuffle method to randomize the characters in the password
+    // Metoda Shuffle pentru a randomiza caracterele din parolă
     private static void Shuffle(char[] array, RandomNumberGenerator rng)
     {
         int n = array.Length;
@@ -572,15 +571,15 @@
 
     async Task EditUser(ApplicationUser _ApplicationUser)
     {
-        // Set the selected user
-        // as the current user
+        // Setează utilizatorul selectat
+        // ca utilizatorul curent
         objUser = _ApplicationUser;
 
-        // Get the user
+        // Obține utilizatorul
         var user = await _UserManager.FindByIdAsync(objUser.Id);
         if (user != null)
         {
-            // Is user in administrator role?
+            // Este utilizatorul în rolul de administrator?
             var UserResult =
                 await _UserManager
                 .IsInRoleAsync(user, ADMINISTRATION_ROLE);
@@ -595,7 +594,7 @@
             }
         }
 
-        // Open the Popup
+        // Deschide fereastra popup
         ShowPopup = true;
     }
 
@@ -603,7 +602,7 @@
 
     async Task DeleteUser()
     {
-        // Get the user
+        // Obține utilizatorul
         var user = await _UserManager.FindByIdAsync(objUser.Id);
 
         var options = new ConfirmDialogOptions
@@ -625,10 +624,10 @@
             return;
         }
 
-        // Close the Popup
+        // Închide fereastra popup
         ShowPopup = false;
 
-        // if user has access to folders, delete access to keep database clean :)
+        // dacă utilizatorul are acces la dosare, șterge accesul pentru a păstra baza de date curată :)
         var accessesToRemove = await dbContext.FolderAccess
                                          .Where(fa => fa.UserId == objUser.Id)
                                          .ToListAsync();
@@ -641,23 +640,23 @@
 
         if (user != null)
         {
-            // Delete the user
+            // Șterge utilizatorul
             await _UserManager.DeleteAsync(user);
         }
 
-        // Refresh Users
+        // Reîmprospătează utilizatorii
         await GetUsers();
     }
 
     async Task ClosePopup()
     {
-        // Close the Popup
+        // Închide fereastra popup
         ShowPopup = false;
         await GetUsers();
     }
 
 
-    // Method to validate the email format
+    // Metodă pentru a valida formatul emailului
     bool IsValidEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -665,17 +664,17 @@
 
         try
         {
-            // Normalize the domain
+            // Normalizează domeniul
             email = Regex.Replace(email, @"(@)(.+)$", DomainMapper,
                                   RegexOptions.None, TimeSpan.FromMilliseconds(200));
 
-            // Examines the domain part of the email and normalizes it.
+            // Examinează partea de domeniu a emailului și o normalizează.
             string DomainMapper(Match match)
             {
-                // Use IdnMapping class to convert Unicode domain names.
+                // Folosește clasa IdnMapping pentru a converti numele de domeniu Unicode.
                 var idn = new System.Globalization.IdnMapping();
 
-                // Pull out and process domain name (throws ArgumentException on invalid)
+                // Extrage și procesează numele de domeniu (aruncă ArgumentException pentru invalid)
                 var domainName = idn.GetAscii(match.Groups[2].Value);
 
                 return match.Groups[1].Value + domainName;

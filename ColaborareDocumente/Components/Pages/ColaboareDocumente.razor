@@ -36,17 +36,19 @@
     <Authorized>
         @* <Switch @bind-Value="afiseazaArhivaRece" Label="Afișeaza arhiva rece" /> *@
 
+        @* Doar dacă nu suntem în pagina/folder sursă putem naviga direct în sursă *@
         @if (folderId > 0)
         {
             <a href="../colaborare-documente">Colaborare Documente</a>
         }
 
+        @* Generare cale către părinții la care are acces *@
         @foreach (var folder in parentFolders)
         {
             <span> / </span>
             <a href="../colaborare-documente/@folder.FolderId">@folder.FolderName</a>
         }
-        
+
 
         @if (folderId > 0)
         {
@@ -64,8 +66,8 @@
         {
             <div style="height:34px;">Începe explorarea</div>
         }
-        
-    
+
+
         @if (@context.User.IsInRole(ADMINISTRATION_ROLE))
         {
             <button class="btn btn-success float-start" @onclick="(() => AddNewFolder())">Adaugă Folder</button>
@@ -85,13 +87,12 @@
 
 
 
-        
+
 
         <table class="table">
             <thead>
                 <tr>
                     <th>Nume</th>
-                    @* <th width="300px">Creat de</th> *@
                     <th width="200px">Ultima modificare</th>
                     <th width="100px"></th>
                 </tr>
@@ -99,45 +100,54 @@
             <tbody>
                 @foreach (var folder in folders)
                 {
+                // Creează un rând pentru fiecare folder din lista de foldere
                     <tr style="cursor:pointer">
-                        <td @onclick="(() => ViewFolder(folder))"> <span class="bi bi-folder2" style="margin-right:5px;"></span>@folder.FolderName</td>
-                        @* <td width="300px"> </td> *@
+                        @* Creează o celulă cu un icon de folder și numele folderului, care navighează la folder la clic *@
+                        <td @onclick="(() => ViewFolder(folder))">
+                            <span class="bi bi-folder2" style="margin-right:5px;"></span>@folder.FolderName
+                        </td>
+                         @* Creează o celulă cu data ultimei modificări, care navighează la folder la clic *@
                         <td width="200px" @onclick="(() => ViewFolder(folder))">
                             @if (folder.LastModifiedDate.HasValue)
                             {
                                 @folder.LastModifiedDate.Value.ToString("dd/MM/yyyy - HH:mm")
+                                // Formatează data ultimei modificări
                             }
                         </td>
+                         @* Creează o celulă cu un buton pentru editarea folderului *@
                         <td width="100px">
-                            <!-- Edit the current forecast -->
-                            <button class="btn btn-primary"
-                                    @onclick="(() => EditFolder(folder))">
+                            <button class="btn btn-primary" @onclick="(() => EditFolder(folder))">
                                 Editează
                             </button>
                         </td>
-
                     </tr>
                 }
+
                 @foreach (var file in files)
                 {
+                // Creează un rând pentru fiecare fișier din lista de fișiere
                     <tr style="cursor:pointer; height:55px;">
-                        <td @onclick="(() => ViewFile(file))"> <span class="bi bi-file-earmark-text" style="margin-right:5px;"></span>@file.FileName</td>
-                        @* <td width="300px"> </td> *@
+                        @* Creează o celulă cu un icon de fișier și numele fișierului, care deschide fișierul la clic *@
+                        <td @onclick="(() => ViewFile(file))">
+                            <span class="bi bi-file-earmark-text" style="margin-right:5px;"></span>@file.FileName
+                        </td>
+                        @* Creează o celulă cu data ultimei modificări, care deschide fișierul la clic *@
                         <td width="200px" @onclick="(() => ViewFile(file))">
                             @if (file.LastModifiedDate.HasValue)
                             {
                                 @file.LastModifiedDate.Value.ToString("dd/MM/yyyy - HH:mm")
+                                // Formatează data ultimei modificări
                             }
                         </td>
-                        <td width="100px" @onclick="(() => ViewFile(file))">                           
-                          
+                        @* Creează o celulă goală pentru viitoare funcționalități (de ex. butoane de acțiune) *@
+                        <td width="100px" @onclick="(() => ViewFile(file))">
                         </td>
-
                     </tr>
                 }
 
                 @if (!folders.Any() && !files.Any())
                 {
+                // Afișează un mesaj dacă nu există foldere sau fișiere în listă
                     <tr>
                         <td colspan="3" class="text-center">Nu există foldere sau documente</td>
                     </tr>
@@ -146,7 +156,7 @@
         </table>
         @if (ShowPopup)
         {
-            <!-- This is the popup to create or edit a user -->
+            <!-- Acesta este popup-ul pentru crearea sau editarea unui utilizator -->
             <div class="modal" tabindex="-1" style="display:block" role="dialog">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -159,13 +169,13 @@
                             {
                                 <h3 class="modal-title">Adaugă Folder</h3>
                             }
-                            <!-- Button to close the popup -->
+                            <!-- Buton pentru închiderea popup-ului -->
                             <button type="button" class="close" style="padding-left: 9px; padding-right: 8px;"
                                     @onclick="ClosePopup">
                                 <span aria-hidden="true">X</span>
                             </button>
                         </div>
-                        <!-- Edit form for the current forecast -->
+                        <!-- Formular de editare pentru prognoza curentă -->
                         <div class="modal-body">
                             <input class="form-control" type="text"
                                    placeholder="Nume Folder"
@@ -181,23 +191,23 @@
                             <br />
                             <br />
 
-                            <!-- Only show delete button if not a new record -->
+                            <!-- Arată butonul de ștergere doar dacă nu este un nou înregistrare -->
                             @if (objFolder.FolderId > 0)
                             {
-                                <!-- Button to save the user -->
+                                <!-- Buton pentru salvarea utilizatorului -->
                                 <button class="btn btn-primary"
                                         @onclick="SaveFolder">
                                     Actualizează
                                 </button>
-                                <!-- Button to delete the forecast -->
-                           @*      <button class="btn btn-danger float-end"
-                                        @onclick="(() => DeleteFolder(objFolder))">
-                                Arhivează
-                                </button> *@
+                                <!-- Buton pentru ștergerea prognozei -->
+                                @*      <button class="btn btn-danger float-end"
+                        @onclick="(() => DeleteFolder(objFolder))">
+                        Arhivează
+                        </button> *@
                             }
                             else
                             {
-                                <!-- Button to save the user -->
+                                <!-- Buton pentru salvarea utilizatorului -->
                                 <button class="btn btn-primary"
                                         @onclick="SaveFolder">
                                     Finalizează
@@ -210,10 +220,10 @@
                 </div>
             </div>
         }
-     
+
     </Authorized>
     <NotAuthorized>
-        <p>You're not loggged in.</p>
+        <p>Nu sunteți autentificat.</p>
     </NotAuthorized>
 </AuthorizeView>
 @code {
@@ -231,28 +241,28 @@
     string ADMINISTRATION_ROLE = "Administrator";
     System.Security.Claims.ClaimsPrincipal CurrentUser;
 
-    // Property used to add or edit the currently selected user
+    // Proprietate utilizată pentru adăugarea sau editarea utilizatorului selectat în prezent
     ApplicationUser objUser = new ApplicationUser();
     Folder objFolder = new Folder();
 
-    // Tracks the selected role for the currently selected user
+    // Urmărește rolul selectat pentru utilizatorul curent selectat
     string CurrentUserRole { get; set; } = "Student";
 
-    // Collection to display the existing users
+    // Colecție pentru a afișa utilizatorii existenți
     List<ApplicationUser> Studenti = new List<ApplicationUser>();
 
-    // Options to display in the roles dropdown when editing a user
+    // Opțiuni de afișat în dropdown-ul rolurilor atunci când se editează un utilizator
     List<string> Options = new List<string>() { "Student", "Administrator" };
 
-    // To hold any possible errors
+    // Pentru a reține eventualele erori
     string strError = "";
 
-    // To enable showing the Popup
+    // Pentru a permite afișarea popup-ului
     bool ShowPopup = false;
 
-    // OR if you expect an integer and want to make it nullable
+    // SAU dacă așteptați un întreg și doriți să îl faceți nullable
     [Parameter]
-    public string FolderId { get; set; } // Nullable for value types
+    public string FolderId { get; set; } // Nullable pentru tipurile de valori
 
     int folderId = -1;
 
@@ -266,19 +276,23 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Get the current logged in user
+        // Obțineți utilizatorul conectat curent
         CurrentUser = (await authenticationStateTask).User;
 
+        // Obțineți starea autentificării și utilizatorul autentificat
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var loggedInUser = authState.User;
 
+        // Obțineți ID-ul utilizatorului autentificat
         loggedInUserId = loggedInUser.FindFirst(c => c.Type.Equals(ClaimTypes.NameIdentifier))?.Value;
 
+        // Verificați dacă utilizatorul este administrator
         if (loggedInUser.IsInRole(ADMINISTRATION_ROLE))
         {
             loggedInUserIsAdmin = true;
         }
 
+        // Preluați lista de utilizatori din UserManager
         var users = _UserManager.Users.Select(x => new ApplicationUser
             {
                 Id = x.Id,
@@ -289,99 +303,102 @@
                 PhoneNumber = x.PhoneNumber,
             });
 
+        // Pentru fiecare utilizator, obțineți rolurile și adăugați la lista Studenti dacă nu are un rol
         foreach (var item in users)
         {
-            var roles = await _UserManager.GetRolesAsync(item); // Get roles for the user
-
+            var roles = await _UserManager.GetRolesAsync(item); // Obțineți rolurile pentru utilizator
             item.RolName = roles.FirstOrDefault();
             if (item.RolName == null)
             {
                 Studenti.Add(item);
             }
-
         }
 
+        // Convertiți FolderId din string în int dacă este posibil
         if (int.TryParse(FolderId, out var id))
         {
-            // FolderId was provided, proceed with loading the folder details
-            folderId = id; // Use this value to load folder details
+            // FolderId a fost furnizat, continuați cu încărcarea detaliilor folderului
+            folderId = id; // Utilizați această valoare pentru a încărca detaliile folderului
         }
 
+        // Doar dacă nu e de tip sursă e necesară construirea navigării înapoi în părinți
         if (folderId > 0)
         {
+            // Preluați detaliile folderului specificat
             var folder = await dbContext.Folders.Where(e => e.FolderId == folderId).FirstOrDefaultAsync();
             headerName = folder.FolderName;
 
+            // Preluați toate folderele din baza de date
             var allFolders = await dbContext.Folders.ToListAsync();
 
+            // Verificați dacă utilizatorul este administrator
             if (loggedInUserIsAdmin)
             {
+                // Dacă utilizatorul este administrator, preluați toți părinții folderului până la rădăcină
                 parentFolders = GetAllParentFoldersUntilRoot(folderId, allFolders);
             }
-            else 
+            else
             {
-                List<FolderAccess> accesibleFolders = await dbContext.FolderAccess                  
-                 .Where(fa => fa.UserId == loggedInUserId) // filter by the current user's access 
+                // Dacă utilizatorul nu este administrator, preluați folderele la care are acces
+                List<FolderAccess> accesibleFolders = await dbContext.FolderAccess
+                 .Where(fa => fa.UserId == loggedInUserId) // filtrați după accesul utilizatorului curent
                  .ToListAsync();
 
                 var accessibleFolderIds = new HashSet<int>(accesibleFolders.Select(f => f.FolderId));
 
-
+                // Preluați toți părinții folderului până la rădăcină pentru utilizatorul curent
                 parentFolders = GetAllParentFoldersUntilRootUser(folderId, allFolders, accessibleFolderIds);
-
             }
-
         }
 
-
-        // ensure there is a ADMINISTRATION_ROLE
+        // Asigurați-vă că există un ADMINISTRATION_ROLE
         var RoleResult = await _RoleManager.FindByNameAsync(ADMINISTRATION_ROLE);
         if (RoleResult == null)
         {
-            // Create ADMINISTRATION_ROLE Role
+            // Creați rolul ADMINISTRATION_ROLE dacă nu există
             await _RoleManager.CreateAsync(new IdentityRole(ADMINISTRATION_ROLE));
         }
 
-        // Ensure a user named Admin@BlazorHelpWebsite.com is an Administrator
-        var user = await _UserManager.FindByNameAsync("admin@uab.ro");
+        // Asigurați-vă că un utilizator numit admin@colaborare.cloud este Administrator
+        var user = await _UserManager.FindByNameAsync("admin@colaborare.cloud");
         if (user != null)
         {
-            // Is Admin@BlazorHelpWebsite.com in administrator role?
+            // Verificați dacă admin@colaborare.cloud este în rolul de Administrator
             var UserResult = await _UserManager.IsInRoleAsync(user, ADMINISTRATION_ROLE);
             if (!UserResult)
             {
-                // Put admin in Administrator role
+                // Puneți admin-ul în rolul de Administrator dacă nu este deja
                 await _UserManager.AddToRoleAsync(user, ADMINISTRATION_ROLE);
             }
         }
 
- 
-
-      
-
-        // Get the folders
+        // Obțineți folderele disponibile pentru utilizator
         await GetFolders();
+        // Obțineți fișierele disponibile pentru utilizator
         await GetFiles();
 
+        // Indicați că operațiunile de backend sunt complete
         isBackendOperationComplete = true;
     }
 
     public List<Folder> GetAllChildFolders(int parentFolderId)
     {
+        // Apelăm metoda recursivă pentru a obține toți copiii folderului și îi convertim într-o listă
         return GetAllChildFoldersRecursive(parentFolderId).ToList();
     }
 
     private IEnumerable<Folder> GetAllChildFoldersRecursive(int parentFolderId)
     {
-        // Direct children of the current folder
+        // Obține copiii direcți ai folderului curent
         var childFolders = dbContext.Folders.Where(f => f.ParentFolderId == parentFolderId).ToList();
 
+        // Iterează prin fiecare folder copil
         foreach (var folder in childFolders)
         {
-            // Yield return the current folder
+            // Returnează folderul curent
             yield return folder;
 
-            // Recursively yield return all children of the current folder
+            // Returnează recursiv toți copiii folderului curent
             foreach (var childFolder in GetAllChildFoldersRecursive(folder.FolderId))
             {
                 yield return childFolder;
@@ -397,10 +414,10 @@
     {
 
         var selectedFiles = e.GetMultipleFiles();
-        // Optionally, you can limit the number of files
+        // Opțional, puteți limita numărul de fișiere
         // selectedFiles = e.GetMultipleFiles(maxAllowedFiles);
 
-        // Assuming you have your Azure Storage connection string in a variable named connectionString
+        // Presupunând că aveți șirul de conexiune la Azure Storage într-o variabilă numită connectionString
         string connectionString = "DefaultEndpointsProtocol=https;AccountName=colaboraredocumente;AccountKey=2VmbePT5IL3EpmVwXNvrIwbDeRlIFN9YCCVJVRB0licy59uhhjdpYzUhX3IHOYpdPQA/LFFzckLO+AStCRQqMg==;EndpointSuffix=core.windows.net";
         string containerName = "uab";
         var blobServiceClient = new BlobServiceClient(connectionString);
@@ -417,54 +434,54 @@
 
                 string contentType = GetMimeType(file.Name);
 
-                // Define the BlobHttpHeaders
-                var httpHeaders = new BlobHttpHeaders { ContentType = contentType }; // Example for a PDF file
+                // Definește BlobHttpHeaders
+                var httpHeaders = new BlobHttpHeaders { ContentType = contentType }; // Exemplu pentru un fișier PDF
 
-                // Get a reference to the BlobClient for the specific blob you want to upload
+                // Obțineți o referință la BlobClient pentru blob-ul specific pe care doriți să-l încărcați
                 var blobClient = blobContainerClient.GetBlobClient(blobName);
 
-                // Create BlobUploadOptions and include the HttpHeaders
+                // Creați BlobUploadOptions și includeți HttpHeaders
                 var options = new BlobUploadOptions
                     {
                         HttpHeaders = httpHeaders
                     };
 
-                // Use BlobClient to upload the file with the specified options
+                // Utilizați BlobClient pentru a încărca fișierul cu opțiunile specificate
                 await blobClient.UploadAsync(file.OpenReadStream(maxAllowedSize), options);
 
-                // After upload, the blob URL can be obtained from the BlobClient
+                // După încărcare, URL-ul blob-ului poate fi obținut din BlobClient
                 var blobUrl = blobClient.Uri.AbsoluteUri;
 
-                // Create a new instance of the Folder entity
+                // Creați o nouă instanță a entității Folder
                 var newFile = new File();
 
-                // Set properties for the new folder
+                // Setați proprietățile pentru noul folder
                 newFile.FileName = file.Name;
                 newFile.BlobName = blobName;
                 newFile.BlobUrl = blobUrl;
-                newFile.CreatedDate = DateTime.Now; // Assuming you have a field for when the folder was created
-                newFile.LastModifiedDate = DateTime.Now; // Set the last modified date to now
+                newFile.CreatedDate = DateTime.Now; // Presupunând că aveți un câmp pentru momentul în care folderul a fost creat
+                newFile.LastModifiedDate = DateTime.Now; // Setați data ultimei modificări la acum
 
-                // Assuming you are getting the current user's ID as you did in the update operation
-                newFile.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // For the creator's user ID
-                newFile.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Also setting the last modified by to the creator
+                // Presupunând că obțineți ID-ul utilizatorului curent așa cum ați făcut în operațiunea de actualizare
+                newFile.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Pentru ID-ul utilizatorului creator
+                newFile.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // De asemenea, setați ultimul modificat de creator
                 newFile.ParentFolderId = folderId;
-                // Add the new folder to the DbSet<Folders> in your DbContext
+                // Adăugați noul folder la DbSet<Folders> în DbContext-ul dvs.
                 dbContext.Files.Add(newFile);
 
             }
             catch (Exception ex)
-            { 
+            {
             }
         }
 
 
-        // Save the changes to the database
+        // Salvați modificările în baza de date
         await dbContext.SaveChangesAsync();
 
         isUploading = false;
         await GetFiles();
-        // Trigger any UI updates or state changes
+        // Declanșați orice actualizări UI sau modificări de stare
         StateHasChanged();
     }
 
@@ -472,7 +489,7 @@
     {
         var mimeTypes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
         {
-            // Add more MIME types here as needed
+            // Adăugați mai multe tipuri MIME aici, după cum este necesar
             {".txt", "text/plain"},
             {".pdf", "application/pdf"},
             {".doc", "application/msword"},
@@ -484,20 +501,20 @@
             {".jpeg", "image/jpeg"},
             {".gif", "image/gif"},
             {".csv", "text/csv"},
-            // Add other mappings as needed
+            // Adăugați alte mapări după cum este necesar
         };
 
-        // Get the file extension
+        // Obțineți extensia fișierului
         string extension = Path.GetExtension(fileName);
 
-        // Default to octet-stream for unknown types
+        // Implicit la octet-stream pentru tipuri necunoscute
         return mimeTypes.TryGetValue(extension, out string mimeType) ? mimeType : "application/octet-stream";
     }
 
     private void ViewFolder(Folder folder)
     {
-        // Use NavigationManager to navigate to the specific page
-        // If you need to pass the folder's ID or any other parameter, append it to the URL
+        // Utilizați NavigationManager pentru a naviga la pagina specifică
+        // Dacă trebuie să transmiteți ID-ul folderului sau orice alt parametru, adăugați-l la URL
         NavigationManager.NavigateTo($"/colaborare-documente/{folder.FolderId}");
     }
 
@@ -515,8 +532,8 @@
 
             string blobUrlWithSas = GenerateBlobSasUrl(storageConnectionString, containerName, blobName);
 
-            // Open the file's BlobUrl in a new browser tab
-            // Note: This requires injecting and using the IJSRuntime to call JavaScript functions from Blazor
+            // Deschideți URL-ul Blob al fișierului într-o nouă filă de browser
+            // Notă: Acest lucru necesită injectarea și utilizarea IJSRuntime pentru a apela funcții JavaScript din Blazor
 
             var mobile = await jsRuntime.InvokeAsync<bool>("isDevice");
             if (mobile)
@@ -535,34 +552,34 @@
     {
         BlobServiceClient blobServiceClient = new BlobServiceClient(storageConnectionString);
 
-        // Get the container client object
+        // Obțineți obiectul container client
         BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
 
-        // Get the blob client object
+        // Obțineți obiectul blob client
         BlobClient blobClient = containerClient.GetBlobClient(blobName);
 
-        // Generate SAS token for the blob using the BlobSasBuilder
+        // Generați tokenul SAS pentru blob folosind BlobSasBuilder
         var sasBuilder = new BlobSasBuilder
             {
                 BlobContainerName = containerName,
                 BlobName = blobName,
-                Resource = "b", // "b" for blob
-                StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5), // Optional: to account for clock skew
-                ExpiresOn = DateTimeOffset.UtcNow.AddHours(1), // Token valid for 1 hour
-                Protocol = SasProtocol.Https // Use HTTPS for security
+                Resource = "b", // "b" pentru blob
+                StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5), // Opțional: pentru a compensa decalajul de timp
+                ExpiresOn = DateTimeOffset.UtcNow.AddHours(1), // Token valabil pentru 1 oră
+                Protocol = SasProtocol.Https // Utilizați HTTPS pentru securitate
             };
 
-        // Specify read permissions for the SAS
+        // Specificați permisiuni de citire pentru SAS
         sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
-        // Note: In the current Azure.Storage.Blobs SDK, we generate the SAS token differently:
-        // Use the user delegation key for generating the token if available, otherwise, fall back to the account key if necessary.
-        // This example assumes using the account key from the connection string implicitly.
+        // Notă: În SDK-ul actual Azure.Storage.Blobs, generăm tokenul SAS diferit:
+        // Utilizați cheia de delegare a utilizatorului pentru generarea tokenului, dacă este disponibilă, altfel, reveniți la cheia contului, dacă este necesar.
+        // Acest exemplu presupune utilizarea implicită a cheii contului din șirul de conexiune.
 
-        // Generate the SAS token
+        // Generați tokenul SAS
         var sasToken = blobClient.GenerateSasUri(sasBuilder).Query;
 
-        // Combine the blob URL with the SAS token
+        // Combinați URL-ul blob cu tokenul SAS
         string blobUrlWithSas = $"{blobClient.Uri}?{sasToken}";
 
         return blobUrlWithSas;
@@ -571,93 +588,66 @@
     private List<Folder> folders = new List<Folder>();
 
     public async Task GetFolders()
-    {
-        // clear any error messages
-        strError = "";
-
+    { 
+        // Verificați dacă utilizatorul autentificat este administrator
         if (loggedInUserIsAdmin)
         {
-            folders = await dbContext.Folders.Where(e => e.ParentFolderId == folderId && e.Archived == false).OrderByDescending(e => e.LastModifiedDate).ToListAsync();
+            // Dacă utilizatorul este administrator, preluați toate folderele care nu sunt arhivate și care au folderId ca părinte,
+            // ordonate descrescător după data ultimei modificări
+            folders = await dbContext.Folders
+                .Where(e => e.ParentFolderId == folderId && e.Archived == false)
+                .OrderByDescending(e => e.LastModifiedDate)
+                .ToListAsync();
         }
         else
         {
-
-            // folders = await dbContext.Folders
-            // .Join(dbContext.FolderAccess, // Join folders with folder accesses
-            //         folder => folder.FolderId, // from each folder take the FolderId
-            //         access => access.FolderId, // from each access take the FolderId (where they match)
-            //         (folder, access) => new { folder, access }) // select both folder and access when they match
-            // .Where(fa => fa.access.UserId == loggedInUserId // filter by the current user's access
-            //                 && fa.folder.ParentFolderId == folderId // and the specified parent folder ID
-            //                 && fa.folder.Archived == false) // and where the folder is not archived
-            // .Select(fa => fa.folder) // select the folder part of the join
-            // .OrderByDescending(f => f.LastModifiedDate) // order by last modified date
-            // .ToListAsync();
-
+            // Dacă utilizatorul nu este administrator
             if (folderId < 0)
             {
+                // Dacă folderId este negativ, preluați toate folderele la care utilizatorul are acces
                 folders = await dbContext.Folders
-                .Join(dbContext.FolderAccess, // Join folders with folder accesses
-                    folder => folder.FolderId, // from each folder take the FolderId
-                    access => access.FolderId, // from each access take the FolderId (where they match)
-                    (folder, access) => new { folder, access }) // select both folder and access when they match
-                .Where(fa => fa.access.UserId == loggedInUserId) // filter by the current user's access
-                .Select(fa => fa.folder) // select the folder part of the join
-                .OrderByDescending(f => f.LastModifiedDate) // order by last modified date
-                .ToListAsync();
-
+                    .Join(dbContext.FolderAccess, // Alăturați folderele cu accesurile la foldere
+                        folder => folder.FolderId, // din fiecare folder luați FolderId
+                        access => access.FolderId, // din fiecare acces luați FolderId (unde se potrivesc)
+                        (folder, access) => new { folder, access }) // selectați atât folderul cât și accesul când se potrivesc
+                    .Where(fa => fa.access.UserId == loggedInUserId) // filtrați după accesul utilizatorului curent
+                    .Select(fa => fa.folder) // selectați partea de folder a alăturării
+                    .OrderByDescending(f => f.LastModifiedDate) // ordonați după data ultimei modificări
+                    .ToListAsync();
             }
             else
-            {                
+            {
+                // Dacă folderId este pozitiv, preluați folderele copil ale folderului specificat la care utilizatorul are acces
                 folders = await dbContext.Folders
-                .Join(dbContext.FolderAccess, // Join folders with folder accesses
-                        folder => folder.FolderId, // from each folder take the FolderId
-                        access => access.FolderId, // from each access take the FolderId (where they match)
-                        (folder, access) => new { folder, access }) // select both folder and access when they match
-                .Where(fa => fa.access.UserId == loggedInUserId // filter by the current user's access
-                                && fa.folder.ParentFolderId == folderId // and the specified parent folder ID
-                                && fa.folder.Archived == false) // and where the folder is not archived
-                .Select(fa => fa.folder) // select the folder part of the join
-                .OrderByDescending(f => f.LastModifiedDate) // order by last modified date
-                .ToListAsync(); 
+                    .Join(dbContext.FolderAccess, // Alăturați folderele cu accesurile la foldere
+                        folder => folder.FolderId, // din fiecare folder luați FolderId
+                        access => access.FolderId, // din fiecare acces luați FolderId (unde se potrivesc)
+                        (folder, access) => new { folder, access }) // selectați atât folderul cât și accesul când se potrivesc
+                    .Where(fa => fa.access.UserId == loggedInUserId // filtrați după accesul utilizatorului curent
+                                && fa.folder.ParentFolderId == folderId // și ID-ul folderului părinte specificat
+                                && fa.folder.Archived == false) // și unde folderul nu este arhivat
+                    .Select(fa => fa.folder) // selectați partea de folder a alăturării
+                    .OrderByDescending(f => f.LastModifiedDate) // ordonați după data ultimei modificări
+                    .ToListAsync();
             }
 
+            // Obțineți setul de ID-uri ale folderelor părinți
             var parentFolderIds = folders.Select(f => f.FolderId).ToHashSet();
 
+            // Filtrați folderele pentru a elimina cele care sunt copii ale altor foldere selectate
             folders = folders
                 .Where(f => f.ParentFolderId == null || !parentFolderIds.Contains(f.ParentFolderId))
                 .ToList();
         }
     }
 
-    // public async Task<List<Folder>> GetAllChildFoldersAsync(DbContext dbContext, int parentId)
-    // {
-    //     List<Folder> allChildFolders = new List<Folder>();
-    //     await FetchChildFoldersAsync(dbContext, parentId, allChildFolders);
-    //     return allChildFolders;
-    // }
-
-    // private async Task FetchChildFoldersAsync(DbContext dbContext, int parentId, List<Folder> allChildFolders)
-    // {
-    //     var childFolders = await dbContext.Folders
-    //         .Where(folder => folder.ParentFolderId == parentId)
-    //         .ToListAsync();
-
-    //     foreach (var childFolder in childFolders)
-    //     {
-    //         allChildFolders.Add(childFolder);
-    //         await FetchChildFoldersAsync(dbContext, childFolder.FolderId, allChildFolders);
-    //     }
-    // }
 
     private List<File> files = new List<File>();
 
     public async Task GetFiles()
     {
-        // clear any error messages
+        // goliți orice mesaje de eroare
         strError = "";
-
-
 
         files = await dbContext.Files.Where(e => e.ParentFolderId == folderId && e.Archived == false).OrderByDescending(e => e.LastModifiedDate).ToListAsync();
     }
@@ -665,15 +655,15 @@
     async Task AddNewFolder()
     {
         objFolder = new Folder();
-        
+
         if (folderId > 0)
-        {         
-            // Fetch FolderAccess records for the folder 
+        {
+            // Obțineți înregistrările FolderAccess pentru folder
             var folderAccessList = await dbContext.FolderAccess
                                                   .Where(fa => fa.FolderId == folderId)
                                                   .ToListAsync();
 
-            // Extract the user IDs from the FolderAccess records
+            // Extrageți ID-urile utilizatorilor din înregistrările FolderAccess
             selectedUserIds = folderAccessList.Select(fa => fa.UserId).ToArray();
         }
 
@@ -686,126 +676,128 @@
         {
             bool isValid = true;
 
+            // Verifică dacă numele folderului este gol
             if (string.IsNullOrEmpty(objFolder.FolderName))
             {
-                validationFolderName = "Câmpul Nume Folder este obligatoriu";
-                isValid = false;
+                validationFolderName = "Câmpul Nume Folder este obligatoriu"; // Setează mesajul de validare
+                isValid = false; // Setează flag-ul de validare ca fiind fals
             }
             else
             {
-                validationFolderName = "";
+                validationFolderName = ""; // Golește mesajul de validare dacă numele folderului nu este gol
             }
 
             if (!isValid)
             {
-                return;
+                return; // Dacă nu este valid, se întoarce din funcție
             }
 
-            // Is this an existing user?
+            // Verifică dacă acesta este un folder existent
             if (objFolder.FolderId > 0)
             {
+                // Găsește folderul existent în baza de date
                 var folder = await dbContext.Folders.FirstOrDefaultAsync(e => e.FolderId == objFolder.FolderId);
 
-                folder.FolderName = objFolder.FolderName;
-                folder.LastModifiedDate = DateTime.Now;
-                folder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                folder.FolderName = objFolder.FolderName; // Actualizează numele folderului
+                folder.LastModifiedDate = DateTime.Now; // Setează data ultimei modificări la momentul curent
+                folder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Setează utilizatorul care a făcut ultima modificare
 
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(); // Salvează modificările în baza de date
             }
             else
             {
-
-                // Create a new instance of the Folder entity
+                // Creează o nouă instanță a entității Folder
                 var newFolder = new Folder();
 
-                // Set properties for the new folder
-                newFolder.FolderName = objFolder.FolderName;
-                newFolder.CreatedDate = DateTime.Now; // Assuming you have a field for when the folder was created
-                newFolder.LastModifiedDate = DateTime.Now; // Set the last modified date to now
+                // Setează proprietățile pentru noul folder
+                newFolder.FolderName = objFolder.FolderName; // Setează numele folderului
+                newFolder.CreatedDate = DateTime.Now; // Setează data creării la momentul curent
+                newFolder.LastModifiedDate = DateTime.Now; // Setează data ultimei modificări la momentul curent
+                newFolder.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Setează utilizatorul care a creat folderul
+                newFolder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Setează utilizatorul care a făcut ultima modificare
+                newFolder.ParentFolderId = folderId; // Setează ID-ul folderului părinte
 
-                // Assuming you are getting the current user's ID as you did in the update operation
-                newFolder.CreatedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // For the creator's user ID
-                newFolder.LastModifiedBy = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Also setting the last modified by to the creator
-                newFolder.ParentFolderId = folderId;
-                // Add the new folder to the DbSet<Folders> in your DbContext
+                // Adaugă noul folder la DbSet<Folders> în DbContext-ul dvs.
                 dbContext.Folders.Add(newFolder);
 
-                // Save the changes to the database
+                // Salvează modificările în baza de date
                 await dbContext.SaveChangesAsync();
 
-                objFolder.FolderId = newFolder.FolderId;
-
+                objFolder.FolderId = newFolder.FolderId; // Actualizează ID-ul folderului nou creat
             }
 
-            // Close the Popup
+            // Închide popup-ul
             ShowPopup = false;
 
+            // Obține toate folderele copil pentru folderul curent
             List<Folder> childFolders = GetAllChildFolders(objFolder.FolderId);
 
-            // First, delete all existing access records for the specified folder
+            // Șterge toate înregistrările de acces existente pentru folderul specificat
             var existingAccesses = await dbContext.FolderAccess
                                                   .Where(fa => fa.FolderId == objFolder.FolderId)
                                                   .ToListAsync();
             dbContext.FolderAccess.RemoveRange(existingAccesses);
 
-            // Now, proceed to add new access records for each user in selectedUserIds
+            // Adaugă înregistrări noi de acces pentru fiecare utilizator din selectedUserIds
             foreach (var userId in selectedUserIds)
             {
-                // Since you've already deleted existing accesses, no need to check for duplicates
+                // Creează o nouă înregistrare de acces
                 var newAccess = new FolderAccess
                     {
-                        FolderId = objFolder.FolderId,
-                        UserId = userId
+                        FolderId = objFolder.FolderId, // Setează ID-ul folderului
+                        UserId = userId // Setează ID-ul utilizatorului
                     };
-                dbContext.FolderAccess.Add(newAccess);
+                dbContext.FolderAccess.Add(newAccess); // Adaugă noua înregistrare de acces în DbContext
             }
 
+            // Iterează prin fiecare folder copil și actualizează înregistrările de acces
             foreach (Folder childFolder in childFolders)
             {
-                // First, delete all existing access records for the specified folder
-                 existingAccesses = await dbContext.FolderAccess
-                                                     .Where(fa => fa.FolderId == childFolder.FolderId)
-                                                      .ToListAsync();
+                // Șterge toate înregistrările de acces existente pentru folderul copil specificat
+                existingAccesses = await dbContext.FolderAccess
+                                                    .Where(fa => fa.FolderId == childFolder.FolderId)
+                                                     .ToListAsync();
                 dbContext.FolderAccess.RemoveRange(existingAccesses);
 
-                // Now, proceed to add new access records for each user in selectedUserIds
+                // Adaugă înregistrări noi de acces pentru fiecare utilizator din selectedUserIds
                 foreach (var userId in selectedUserIds)
                 {
-                    // Since you've already deleted existing accesses, no need to check for duplicates
+                    // Creează o nouă înregistrare de acces
                     var newAccess = new FolderAccess
                         {
-                            FolderId = childFolder.FolderId,
-                            UserId = userId
+                            FolderId = childFolder.FolderId, // Setează ID-ul folderului copil
+                            UserId = userId // Setează ID-ul utilizatorului
                         };
-                    dbContext.FolderAccess.Add(newAccess);
+                    dbContext.FolderAccess.Add(newAccess); // Adaugă noua înregistrare de acces în DbContext
                 }
             }
 
-            // Finally, save all changes to the database
+            // Salvează toate modificările în baza de date
             await dbContext.SaveChangesAsync();
 
-            // Refresh Users
+            // Actualizează utilizatorii
             await GetFolders();
         }
         catch (Exception ex)
         {
-            strError = ex.GetBaseException().Message;
+            strError = ex.GetBaseException().Message; // Capturați și setați mesajul de eroare
         }
     }
 
+
     async Task EditFolder(Folder folder)
     {
-        objFolder = folder; 
+        objFolder = folder;
 
-        // Fetch FolderAccess records for the folder
+        // Obțineți înregistrările FolderAccess pentru folder
         var folderAccessList = await dbContext.FolderAccess
                                               .Where(fa => fa.FolderId == folder.FolderId)
                                               .ToListAsync();
 
-        // Extract the user IDs from the FolderAccess records
+        // Extrageți ID-urile utilizatorilor din înregistrările FolderAccess
         selectedUserIds = folderAccessList.Select(fa => fa.UserId).ToArray();
 
-        // Open the Popup
+        // Deschideți popup-ul
         ShowPopup = true;
     }
 
@@ -813,7 +805,7 @@
 
     async Task DeleteFolder(Folder folder)
     {
-        // Get the user
+        // Obțineți utilizatorul
         // var user = await _UserManager.FindByIdAsync(objUser.Id);
 
         var options = new ConfirmDialogOptions
@@ -837,27 +829,27 @@
 
         try
         {
-            dbContext.Folders.Remove(folder); // Remove the folder entity from the context
-            await dbContext.SaveChangesAsync(); // Save changes to the database
+            dbContext.Folders.Remove(folder); // Îndepărtați entitatea folder din context
+            await dbContext.SaveChangesAsync(); // Salvați modificările în baza de date
 
-            // Optionally, show a success message or perform other actions post deletion
+            // Opțional, afișați un mesaj de succes sau efectuați alte acțiuni post-ștergere
         }
         catch (Exception ex)
         {
-            // Handle any errors that occur during the delete operation
-            // For example, log the exception and show an error message to the user
-            Console.WriteLine($"Error deleting folder: {ex.Message}");
-            // Depending on your UI framework, you may show an alert to the user here
+            // Gestionați orice erori care apar în timpul operațiunii de ștergere
+            // De exemplu, înregistrați excepția și afișați un mesaj de eroare utilizatorului
+            Console.WriteLine($"Eroare la ștergerea folderului: {ex.Message}");
+            // În funcție de cadrul dvs. UI, puteți afișa aici o alertă utilizatorului
         }
 
-        // Refresh Users
+        // Actualizați utilizatorii
         ShowPopup = false;
         await GetFolders();
     }
 
     async Task ClosePopup()
     {
-        // Close the Popup
+        // Închideți popup-ul
         ShowPopup = false;
         await GetFolders();
     }
@@ -869,64 +861,84 @@
 
     public static List<Folder> GetAllParentFoldersUntilRoot(int childFolderId, List<Folder> allFolders)
     {
+        // Creează o listă pentru a reține folderele părinte
         List<Folder> parentFolders = new List<Folder>();
+
+        // Obține folderul curent pe baza ID-ului
         var currentFolder = GetFolderById(childFolderId, allFolders);
 
-        // Loop until there is no parent folder
-        while (currentFolder != null && currentFolder.ParentFolderId != null) // Assuming ParentFolderId can be null or set to an invalid value when there is no parent
+        // Buclează până când nu există niciun folder părinte
+        while (currentFolder != null && currentFolder.ParentFolderId != null) 
         {
+            // Obține folderul părinte pe baza ID-ului părintelui
             var parentFolder = GetFolderById(currentFolder.ParentFolderId, allFolders);
             if (parentFolder != null)
             {
+                // Adaugă folderul părinte la listă
                 parentFolders.Add(parentFolder);
+
+                // Setează folderul curent ca fiind folderul părinte
                 currentFolder = parentFolder;
             }
             else
             {
-                // No valid parent found, this means we reached the top-most folder
+                // Niciun părinte valid găsit, ceea ce înseamnă că am ajuns la folderul cel mai de sus
                 break;
             }
         }
 
+        // Inversează lista pentru a avea ordinea corectă de la rădăcină la copil
         parentFolders.Reverse();
 
+        // Returnează lista de foldere părinte
         return parentFolders;
     }
 
-    public static List<Folder> GetAllParentFoldersUntilRootUser(int childFolderId, List<Folder> allFolders, HashSet<int> accessibleFolderIds)
+    public static List<Folder> GetAllParentFoldersUntilRootUser(int childFolderId, List<Folder> allFolders, HashSet<int> 
+        accessibleFolderIds)
     {
+        // Creează o listă pentru a reține folderele părinte
         List<Folder> parentFolders = new List<Folder>();
+
+        // Obține folderul curent pe baza ID-ului
         var currentFolder = GetFolderById(childFolderId, allFolders);
 
-        // Loop until there is no parent folder
-        while (currentFolder != null && currentFolder.ParentFolderId != null) // Assuming ParentFolderId can be null or set to an invalid value when there is no parent
+        // Buclează până când nu există niciun folder părinte
+        while (currentFolder != null && currentFolder.ParentFolderId != null) 
         {
-            // Check if the currentFolder's parent ID is in the list of accessible folder IDs
+            // Verifică dacă ID-ul părintelui folderului curent este în lista ID-urilor de foldere accesibile
             if (accessibleFolderIds.Contains(currentFolder.ParentFolderId))
             {
+                // Obține folderul părinte pe baza ID-ului părintelui
                 var parentFolder = GetFolderById(currentFolder.ParentFolderId, allFolders);
                 if (parentFolder != null)
                 {
+                    // Adaugă folderul părinte la listă
                     parentFolders.Add(parentFolder);
+
+                    // Setează folderul curent ca fiind folderul părinte
                     currentFolder = parentFolder;
                 }
                 else
                 {
-                    // No valid parent found, this means we reached the top-most folder
+                    // Niciun părinte valid găsit, ceea ce înseamnă că am ajuns la folderul cel mai de sus
                     break;
                 }
             }
             else
             {
-                // The user does not have access to the parent folder, or there is no parent, break the loop
+                // Utilizatorul nu are acces la folderul părinte sau nu există părinte, întrerupe bucla
                 break;
             }
         }
 
+        // Inversează lista pentru a avea ordinea corectă de la rădăcină la copil
         parentFolders.Reverse();
 
+        // Returnează lista de foldere părinte
         return parentFolders;
     }
+
 
     private async Task GoBack()
     {
@@ -938,9 +950,9 @@
     .file-input-wrapper {
         position: relative;
         width: max-content;
-        float:left;
-        margin-left:10px;
-        cursor:pointer;
+        float: left;
+        margin-left: 10px;
+        cursor: pointer;
     }
 
     .file-input-button {
@@ -964,5 +976,4 @@
         cursor: pointer;
     }
 
- 
 </style>
