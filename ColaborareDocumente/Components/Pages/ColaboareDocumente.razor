@@ -739,17 +739,19 @@
             dbContext.FolderAccess.RemoveRange(existingAccesses);
 
             // Adaugă înregistrări noi de acces pentru fiecare utilizator din selectedUserIds
-            foreach (var userId in selectedUserIds)
+            if (selectedUserIds != null)
             {
-                // Creează o nouă înregistrare de acces
-                var newAccess = new FolderAccess
-                    {
-                        FolderId = objFolder.FolderId, // Setează ID-ul folderului
-                        UserId = userId // Setează ID-ul utilizatorului
-                    };
-                dbContext.FolderAccess.Add(newAccess); // Adaugă noua înregistrare de acces în DbContext
+                foreach (var userId in selectedUserIds)
+                {
+                    // Creează o nouă înregistrare de acces
+                    var newAccess = new FolderAccess
+                        {
+                            FolderId = objFolder.FolderId, // Setează ID-ul folderului
+                            UserId = userId // Setează ID-ul utilizatorului
+                        };
+                    dbContext.FolderAccess.Add(newAccess); // Adaugă noua înregistrare de acces în DbContext
+                }
             }
-
             // Iterează prin fiecare folder copil și actualizează înregistrările de acces
             foreach (Folder childFolder in childFolders)
             {
